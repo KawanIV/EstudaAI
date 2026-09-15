@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kahan - Admin</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>⚙️ Admin</h2>
+                <button onclick="logout()">Sair</button>
+            </div>
+            <div class="sidebar-content">
+                <div class="plano-item" onclick="mostrarSecao('metricas')">
+                    📊 Métricas
+                </div>
+                <div class="plano-item" onclick="mostrarSecao('usuarios')">
+                    👥 Usuários
+                </div>
+                <div class="plano-item" onclick="mostrarSecao('novo')">
+                    ➕ Novo Usuário
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN -->
+        <main class="main">
+            <!-- SEÇÃO: MÉTRICAS -->
+            <section id="secao-metricas">
+                <h1>📊 Métricas</h1>
+                <div class="metricas-grid" id="metricas-grid">
+                    <div class="metrica-card">
+                        <div class="valor" id="m-total">-</div>
+                        <div class="label">Total de Alunos</div>
+                    </div>
+                    <div class="metrica-card">
+                        <div class="valor" id="m-ativos">-</div>
+                        <div class="label">Licenças Ativas</div>
+                    </div>
+                    <div class="metrica-card">
+                        <div class="valor" id="m-logins-hoje">-</div>
+                        <div class="label">Logins Hoje</div>
+                    </div>
+                    <div class="metrica-card">
+                        <div class="valor" id="m-logins-semana">-</div>
+                        <div class="label">Logins (7 dias)</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-secondary" onclick="carregarMetricas()">
+                        🔄 Atualizar Métricas
+                    </button>
+                </div>
+            </section>
+
+            <!-- SEÇÃO: USUÁRIOS -->
+            <section id="secao-usuarios" style="display: none;">
+                <h1>👥 Usuários</h1>
+                <div class="form-inline">
+                    <input type="text" id="filtro-usuarios" placeholder="🔍 Filtrar por nome ou e-mail..." oninput="renderizarUsuarios()">
+                </div>
+                <div class="tabela-usuarios">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>E-mail</th>
+                                <th>Role</th>
+                                <th>Licença</th>
+                                <th>Criado em</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-usuarios">
+                            <tr><td colspan="6" style="text-align:center; color:#7f8c8d;">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- SEÇÃO: NOVO USUÁRIO -->
+            <section id="secao-novo" style="display: none;">
+                <h1>➕ Novo Usuário</h1>
+                <div style="background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 500px;">
+                    <input type="text" id="novo-nome" placeholder="Nome completo" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ccc; border-radius:6px;">
+                    <input type="email" id="novo-email" placeholder="E-mail" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ccc; border-radius:6px;">
+                    <input type="text" id="novo-senha" placeholder="Senha inicial" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ccc; border-radius:6px;">
+                    <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="criarUsuario()">
+                        Criar Usuário
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/app.js"></script>
+    <script>
+        // ==========================================
+        // ESTADO
+        // ==========================================
+        let USUARIOS = [];
+
+        // ==========================================
+        // INICIALIZAÇÃO
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            const admin = protegerRota('admin');
+            if (!admin) return;
+
+            await carregarMetricas();
+            await carregarUsuarios();
+        });
+
+        // ==========================================
+        // NAVEGAÇÃO DE SEÇÕES
+        // ==========================================
+        function mostrarSecao(secao) {
+            ['metricas', 'usuarios', 'novo'].forEach(s => {
+                document.getElementById(`secao-${s}`).style.display = 'none';
+            });
+            document.getElementById(`secao-${secao}`).style.display = 'block';
+        }
+
+        // ==========================================
+        // MÉTRICAS
+        // ==========================================
+        async function carregarMetricas() {
+            const resp = await apiFetch('/api/admin/metricas');
+            if (!resp) return;
+            const data = await resp.json();
+
+            document.getElementById('m-total').innerText = data.total_usuarios;
+            document.getElementById('m-ativos').innerText = data.usuarios_ativos;
+            document.getElementById('m-logins-hoje').innerText = data.logins_hoje;
+            document.getElementById('m-logins-semana').innerText = data.logins_ultimos_7_dias;
+        }
+
+        // ==========================================
+        // USUÁRIOS
+        // ==========================================
+        async function carregarUsuarios() {
+            const resp = await apiFetch('/api/admin/usuarios');
+            if (!resp) return;
+            USUARIOS = await resp.json();
+            renderizarUsuarios();
+        }
+
+        function renderizarUsuarios() {
+            const filtro = (document.getElementById('filtro-usuarios')?.value || '').toLowerCase();
+            const tbody = document.getElementById('tbody-usuarios');
+
+            const filtrados = USUARIOS.filter(u =>
+                u.nome.toLowerCase().includes(filtro) ||
+                u.email.toLowerCase().includes(filtro)
+            );
+
+            if (!filtrados.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#7f8c8d;">Nenhum usuário encontrado</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtrados.map(u => {
+                const roleBadge = u.role === 'admin'
+                    ? '<span class="badge badge-admin">ADMIN</span>'
+                    : '<span class="badge" style="background:#ecf0f1; color:#7f8c8d;">aluno</span>';
+
+                const licencaBadge = u.licenca_ativa
+                    ? '<span class="badge badge-ativo">Ativa</span>'
+                    : '<span class="badge badge-inativo">Inativa</span>';
+
+                const acoes = u.role === 'admin'
+                    ? '<span style="color:#bdc3c7; font-size:0.85rem;">—</span>'
+                    : `
+                        <button onclick="toggleLicenca(${u.id})" style="background:#f39c12; color:white;">
+                            ${u.licenca_ativa ? 'Desativar' : 'Ativar'}
+                        </button>
+                        <button onclick="deletarUsuario(${u.id}, '${escapeHtml(u.nome)}')" style="background:#e74c3c; color:white;">
+                            Excluir
+                        </button>
+                    `;
+
+                return `
+                    <tr>
+                        <td><strong>${escapeHtml(u.nome)}</strong></td>
+                        <td>${escapeHtml(u.email)}</td>
+                        <td>${roleBadge}</td>
+                        <td>${licencaBadge}</td>
+                        <td>${u.criado_em ? formatarData(u.criado_em) : '—'}</td>
+                        <td><div class="acoes">${acoes}</div></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ==========================================
+        // CRIAR USUÁRIO
+        // ==========================================
+        async function criarUsuario() {
+            const nome = document.getElementById('novo-nome').value.trim();
+            const email = document.getElementById('novo-email').value.trim();
+            const senha = document.getElementById('novo-senha').value;
+
+            if (!nome || !email || !senha) {
+                mostrarToast('Preencha todos os campos', 'error');
+                return;
+            }
+            if (senha.length < 6) {
+                mostrarToast('Senha deve ter pelo menos 6 caracteres', 'error');
+                return;
+            }
+
+            const resp = await apiFetch('/api/admin/usuarios', {
+                method: 'POST',
+                body: JSON.stringify({ nome, email, senha })
+            });
+
+            if (resp && resp.ok) {
+                mostrarToast('Usuário criado com sucesso!', 'success');
+                document.getElementById('novo-nome').value = '';
+                document.getElementById('novo-email').value = '';
+                document.getElementById('novo-senha').value = '';
+                await carregarUsuarios();
+                await carregarMetricas();
+                mostrarSecao('usuarios');
+            } else if (resp) {
+                const err = await resp.json();
+                mostrarToast(err.detail || 'Erro ao criar usuário', 'error');
+            }
+        }
+
+        // ==========================================
+        // TOGGLE LICENÇA
+        // ==========================================
+        async function toggleLicenca(id) {
+            const resp = await apiFetch(`/api/admin/usuarios/${id}/licenca`, { method: 'PATCH' });
+
+            if (resp && resp.ok) {
+                const data = await resp.json();
+                mostrarToast(data.licenca_ativa ? 'Licença ativada' : 'Licença desativada', 'success');
+                await carregarUsuarios();
+                await carregarMetricas();
+            } else if (resp) {
+                const err = await resp.json();
+                mostrarToast(err.detail || 'Erro ao alterar licença', 'error');
+            }
+        }
+
+        // ==========================================
+        // DELETAR USUÁRIO
+        // ==========================================
+        async function deletarUsuario(id, nome) {
+            if (!confirm(`Excluir o usuário "${nome}"? Essa ação não pode ser desfeita.`)) return;
+
+            const resp = await apiFetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' });
+
+            if (resp && resp.ok) {
+                mostrarToast('Usuário excluído', 'success');
+                await carregarUsuarios();
+                await carregarMetricas();
+            } else if (resp) {
+                const err = await resp.json();
+                mostrarToast(err.detail || 'Erro ao excluir', 'error');
+            }
+        }
+
+        // ==========================================
+        // HELPERS
+        // ==========================================
+        function escapeHtml(texto) {
+            if (texto == null) return '';
+            return String(texto)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>

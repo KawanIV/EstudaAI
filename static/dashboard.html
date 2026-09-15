@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kahan - Meus Estudos</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="app">
+        <!-- ==================== SIDEBAR ==================== -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📚 Meus Estudos</h2>
+                <button onclick="logout()">Sair</button>
+            </div>
+            <div class="sidebar-content" id="arvore-sidebar">
+                <div class="vazio">Carregando...</div>
+            </div>
+            <div style="padding: 15px 20px; border-top: 1px solid #34495e;">
+                <button class="btn btn-primary" style="width: 100%;" onclick="criarPlano()">
+                    + Novo Plano
+                </button>
+            </div>
+        </aside>
+
+        <!-- ==================== MAIN ==================== -->
+        <main class="main">
+            <div class="bem-vindo" id="bem-vindo">
+                <h2>Bem-vindo, <span id="nome-usuario"></span>! 👋</h2>
+                <p>Crie ou selecione um plano ao lado para visualizar o mapa mental.</p>
+            </div>
+
+            <!-- MAPA MENTAL -->
+            <section id="mapa-container" style="display: none;">
+                <div class="mapa-header">
+                    <h1 id="titulo-plano"></h1>
+                    <div class="mapa-controles">
+                        <button class="btn btn-secondary" onclick="zoomIn()" title="Zoom +">＋</button>
+                        <button class="btn btn-secondary" onclick="zoomOut()" title="Zoom −">−</button>
+                        <button class="btn btn-secondary" onclick="resetZoom()" title="Resetar">⟲</button>
+                        <button class="btn btn-secondary" onclick="expandirTudo()" title="Expandir tudo">⤢</button>
+                        <button class="btn btn-secondary" onclick="colapsarTudo()" title="Colapsar tudo">⤡</button>
+                    </div>
+                </div>
+                <div class="mapa-wrapper">
+                    <svg id="mapa-svg"></svg>
+                </div>
+            </section>
+
+            <!-- CONTEÚDO DO SUBTÓPICO -->
+            <section id="conteudo-area" style="display: none;">
+                <h2 id="titulo-subtopico"></h2>
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="material">📖 Material</button>
+                    <button class="tab-btn" data-tab="resumo">📝 Resumo</button>
+                    <button class="tab-btn" data-tab="link">🔗 Links</button>
+                    <button class="tab-btn" data-tab="pdf">📄 PDFs</button>
+                </div>
+
+                <div id="tab-material" class="tab-content active"></div>
+                <div id="tab-resumo" class="tab-content"></div>
+                <div id="tab-link" class="tab-content"></div>
+                <div id="tab-pdf" class="tab-content"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODAL genérico -->
+    <div id="modal" class="modal" style="display: none;">
+        <div class="modal-box">
+            <h3 id="modal-titulo"></h3>
+            <div id="modal-campos"></div>
+            <div class="modal-acoes">
+                <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmarModal()">Criar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL conteúdo -->
+    <div id="modal-conteudo" class="modal" style="display: none;">
+        <div class="modal-box">
+            <h3 id="modal-conteudo-titulo">Adicionar Conteúdo</h3>
+            <div id="modal-conteudo-campos"></div>
+            <div class="modal-acoes">
+                <button class="btn btn-secondary" onclick="fecharModalConteudo()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmarModalConteudo()">Adicionar</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* ===== MAPA MENTAL ===== */
+        #mapa-container { padding: 0; }
+        .mapa-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .mapa-header h1 {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+            font-size: 1.5rem;
+        }
+        .mapa-controles { display: flex; gap: 8px; }
+        .mapa-controles button {
+            width: 40px;
+            height: 40px;
+            font-size: 1.1rem;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mapa-wrapper {
+            background: #fafcfb;
+            border: 1px solid #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 520px;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.03);
+        }
+        #mapa-svg {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+            display: block;
+        }
+        #mapa-svg:active { cursor: grabbing; }
+
+        /* Nós do mapa */
+        .node circle {
+            fill: #fff;
+            stroke: #1abc9c;
+            stroke-width: 2.5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .node circle:hover { fill: #d1f2eb; }
+        .node.nivel-plano circle { fill: #2c3e50; stroke: #2c3e50; }
+        .node.nivel-materia circle { fill: #1abc9c; stroke: #1abc9c; }
+        .node.nivel-topico circle { fill: #f39c12; stroke: #f39c12; }
+        .node.nivel-subtopico circle { fill: #e74c3c; stroke: #e74c3c; }
+        .node.nivel-subtopico circle:hover { fill: #f5b7b1; }
+        .node.selecionado circle {
+            stroke-width: 4px;
+            filter: drop-shadow(0 0 8px rgba(231, 76, 60, 0.6));
+        }
+        .node circle.colapsado {
+            stroke-dasharray: 3 2;
+        }
+        .node text {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 12px;
+            fill: #2c3e50;
+            pointer-events: none;
+            user-select: none;
+        }
+        .node .badge-contador {
+            font-size: 10px;
+            fill: #7f8c8d;
+        }
+        .link {
+            fill: none;
+            stroke: #bdc3c7;
+            stroke-width: 1.5px;
+        }
+
+        /* Modal (estilos do arquivo anterior) */
+        .modal {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .modal-box {
+            background: white; padding: 30px; border-radius: 12px;
+            width: 480px; max-width: 90%; max-height: 90vh; overflow-y: auto;
+        }
+        .modal-box h3 { margin-bottom: 20px; color: #2c3e50; }
+        .modal-box input, .modal-box select, .modal-box textarea {
+            width: 100%; padding: 10px; margin: 8px 0;
+            border: 1px solid #ccc; border-radius: 6px;
+            font-size: 0.95rem; font-family: inherit;
+        }
+        .modal-box textarea { min-height: 100px; resize: vertical; }
+        .modal-acoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .tab-add-btn {
+            background: #ecf0f1; color: #2c3e50;
+            border: 2px dashed #bdc3c7; padding: 15px; width: 100%;
+            border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px;
+        }
+        .tab-add-btn:hover { background: #e0e6e6; border-color: #1abc9c; color: #1abc9c; }
+
+        /* Sidebar ajustes para botão + */
+        .plano-item, .materia-item, .topico-item, .subtopico-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .btn-add-small {
+            background: transparent;
+            border: 1px solid #7f8c8d;
+            color: #7f8c8d;
+            border-radius: 4px;
+            width: 20px;
+            height: 20px;
+            font-size: 0.75rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+            visibility: hidden;
+        }
+        .plano-item:hover .btn-add-small,
+        .materia-item:hover .btn-add-small,
+        .topico-item:hover .btn-add-small { visibility: visible; }
+        .btn-add-small:hover {
+            background: #1abc9c;
+            border-color: #1abc9c;
+            color: white;
+        }
+    </style>
+
+    <script src="/app.js"></script>
+    <script>
+        // ==========================================
+        // ESTADO
+        // ==========================================
+        let USUARIO = null;
+        let ARVORE = [];
+        let PLANO_ATUAL = null;
+        let SUBTOPICO_ATUAL = null;
+        let TIPO_CRIACAO = null;
+        let CONTEXTO_CRIACAO = null;
+        let TIPO_CONTEUDO = null;
+
+        // D3
+        let svg, g, zoomBehavior, treeLayout, root;
+        let i = 0; // contador de ids únicos pros nós
+
+        // ==========================================
+        // INIT
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            USUARIO = protegerRota('aluno');
+            if (!USUARIO) return;
+            document.getElementById('nome-usuario').innerText = USUARIO.nome;
+            await carregarArvore();
+        });
+
+        async function carregarArvore() {
+            const resp = await apiFetch('/api/estudos/arvore');
+            if (!resp) return;
+            ARVORE = await resp.json();
+            renderizarSidebar();
+            if (PLANO_ATUAL) {
+                const atualizado = ARVORE.find(p => p.id === PLANO_ATUAL.id);
+                if (atualizado) {
+                    PLANO_ATUAL = atualizado;
+                    renderizarMapa(atualizado);
+                }
+            }
+        }
+
+        // ==========================================
+        // SIDEBAR
+        // ==========================================
+        function renderizarSidebar() {
+            const container = document.getElementById('arvore-sidebar');
+
+            if (!ARVORE.length) {
+                container.innerHTML = '<div class="vazio">Você ainda não tem planos.<br>Crie um para começar!</div>';
+                return;
+            }
+
+            let html = '';
+            ARVORE.forEach(plano => {
+                const ativo = PLANO_ATUAL && PLANO_ATUAL.id === plano.id;
+                html += `
+                    <div class="plano-item ${ativo ? 'active' : ''}">
+                        <span onclick="selecionarPlano(${plano.id})" style="flex:1; cursor:pointer;">
+                            🗺️ ${escapeHtml(plano.nome)}
+                        </span>
+                        <button class="btn-add-small" onclick="event.stopPropagation(); abrirCriacao('materia', ${plano.id})" title="Nova matéria">+</button>
+                        <button class="btn-del" onclick="event.stopPropagation(); deletarItem('planos', ${plano.id})" title="Excluir plano">✕</button>
+                    </div>
+                `;
+
+                plano.materias.forEach(materia => {
+                    html += `
+                        <div class="materia-item">
+                            <span style="flex:1;">📂 ${escapeHtml(materia.nome)}</span>
+                            <button class="btn-add-small" onclick="event.stopPropagation(); abrirCriacao('topico', ${materia.id})" title="Novo tópico">+</button>
+                            <button class="btn-del" onclick="event.stopPropagation(); deletarItem('materias', ${materia.id})" title="Excluir matéria">✕</button>
+                        </div>
+                    `;
+
+                    materia.topicos.forEach(topico => {
+                        html += `
+                            <div class="topico-item">
+                                <span style="flex:1;">🔖 ${escapeHtml(topico.numero || '')} ${escapeHtml(topico.nome)}</span>
+                                <button class="btn-add-small" onclick="event.stopPropagation(); abrirCriacao('subtopico', ${topico.id})" title="Novo subtópico">+</button>
+                            </div>
+                        `;
+
+                        topico.subtopicos.forEach(sub => {
+                            html += `
+                                <div class="subtopico-item" onclick="selecionarSubtopico(${sub.id})">
+                                    <span>📄 ${escapeHtml(sub.numero || '')} ${escapeHtml(sub.nome)}</span>
+                                </div>
+                            `;
+                        });
+                    });
+                });
+            });
+
+            container.innerHTML = html;
+        }
+
+        // ==========================================
+        // MAPA MENTAL (D3)
+        // ==========================================
+        function selecionarPlano(planoId) {
+            const plano = ARVORE.find(p => p.id === planoId);
+            if (!plano) return;
+
+            PLANO_ATUAL = plano;
+            SUBTOPICO_ATUAL = null;
+
+            document.getElementById('bem-vindo').style.display = 'none';
+            document.getElementById('conteudo-area').style.display = 'none';
+            document.getElementById('mapa-container').style.display = 'block';
+            document.getElementById('titulo-plano').innerText = `🗺️ ${plano.nome}`;
+
+            renderizarSidebar();
+            renderizarMapa(plano);
+        }
+
+        function renderizarMapa(plano) {
+            // Converte a estrutura da API em hierarquia D3
+            const hierarquia = {
+                id: `plano-${plano.id}`,
+                nome: plano.nome,
+                tipo: 'plano',
+                refId: plano.id,
+                children: plano.materias.map(mat => ({
+                    id: `mat-${mat.id}`,
+                    nome: mat.nome,
+                    tipo: 'materia',
+                    refId: mat.id,
+                    children: mat.topicos.map(top => ({
+                        id: `top-${top.id}`,
+                        nome: `${top.numero || ''} ${top.nome}`.trim(),
+                        tipo: 'topico',
+                        refId: top.id,
+                        children: top.subtopicos.map(sub => ({
+                            id: `sub-${sub.id}`,
+                            nome: `${sub.numero || ''} ${sub.nome}`.trim(),
+                            tipo: 'subtopico',
+                            refId: sub.id,
+                        }))
+                    }))
+                }))
+            };
+
+            // Limpa o SVG
+            const svgEl = document.getElementById('mapa-svg');
+            d3.select(svgEl).selectAll('*').remove();
+
+            const width = svgEl.clientWidth || 900;
+            const height = svgEl.clientHeight || 520;
+
+            svg = d3.select(svgEl)
+                .attr('viewBox', [0, 0, width, height]);
+
+            // Grupo principal (onde o zoom aplica)
+            g = svg.append('g');
+
+            // Zoom + pan
+            zoomBehavior = d3.zoom()
+                .scaleExtent([0.2, 3])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+
+            svg.call(zoomBehavior);
+
+            // Layout da árvore horizontal (esquerda → direita)
+            treeLayout = d3.tree()
+                .size([height - 80, width - 220])
+                .separation((a, b) => (a.parent === b.parent ? 1 : 1.4));
+
+            root = d3.hierarchy(hierarquia, d => d.children);
+            root.x0 = height / 2;
+            root.y0 = 0;
+
+            // Colapsa automaticamente os filhos de matérias (deixa tópicos visíveis)
+            root.children?.forEach((mat, idx) => {
+                if (idx > 0) colapsarNo(mat); // deixa o primeiro expandido
+            });
+
+            atualizarMapa(root);
+        }
+
+        function colapsarNo(d) {
+            if (d.children) {
+                d._children = d.children;
+                d._children.forEach(colapsarNo);
+                d.children = null;
+            }
+        }
+
+        function atualizarMapa(source) {
+            const svgEl = document.getElementById('mapa-svg');
+            const width = svgEl.clientWidth || 900;
+            const height = svgEl.clientHeight || 520;
+
+            const duration = 400;
+            const treeData = treeLayout(root);
+
+            const nodes = treeData.descendants();
+            const links = treeData.links();
+
+            // Normaliza posição Y dos nós
+            nodes.forEach(d => { d.y = d.depth * 200; });
+
+            // ====== LINKS (curvas orgânicas) ======
+            const link = g.selectAll('path.link')
+                .data(links, d => d.target.id);
+
+            const linkEnter = link.enter().insert('path', 'g')
+                .attr('class', 'link')
+                .attr('d', () => {
+                    const o = { x: source.x0, y: source.y0 };
+                    return diagonal(o, o);
+                });
+
+            link.merge(linkEnter)
+                .transition().duration(duration)
+                .attr('d', d => diagonal(d.source, d.target));
+
+            link.exit().transition().duration(duration)
+                .attr('d', () => {
+                    const o = { x: source.x, y: source.y };
+                    return diagonal(o, o);
+                })
+                .remove();
+
+            // ====== NODES ======
+            const node = g.selectAll('g.node')
+                .data(nodes, d => d.id || (d.id = ++i));
+
+            const nodeEnter = node.enter().append('g')
+                .attr('class', d => `node nivel-${d.data.tipo} ${SUBTOPICO_ATUAL && SUBTOPICO_ATUAL.id === d.data.refId && d.data.tipo === 'subtopico' ? 'selecionado' : ''}`)
+                .attr('transform', () => `translate(${source.y0},${source.x0})`)
+                .on('click', (event, d) => {
+                    event.stopPropagation();
+                    clicarNo(d);
+                });
+
+            nodeEnter.append('circle')
+                .attr('r', 1e-6)
+                .attr('class', d => (d._children ? 'colapsado' : ''))
+                .style('fill', d => d._children ? '#fff' : null);
+
+            nodeEnter.append('text')
+                .attr('dy', '.35em')
+                .attr('x', d => d.children || d._children ? -12 : 12)
+                .attr('text-anchor', d => d.children || d._children ? 'end' : 'start')
+                .text(d => truncar(d.data.nome, 28))
+                .style('fill-opacity', 1e-6);
+
+            const nodeUpdate = node.merge(nodeEnter);
+
+            nodeUpdate.transition().duration(duration)
+                .attr('transform', d => `translate(${d.y},${d.x})`);
+
+            nodeUpdate.select('circle')
+                .attr('r', d => d.data.tipo === 'plano' ? 12 : 8)
+                .attr('class', d => d._children ? 'colapsado' : '')
+                .style('fill', d => {
+                    if (d._children) return '#fff';
+                    const cores = { plano: '#2c3e50', materia: '#1abc9c', topico: '#f39c12', subtopico: '#e74c3c' };
+                    return cores[d.data.tipo] || '#95a5a6';
+                })
+                .style('stroke', d => {
+                    const cores = { plano: '#2c3e50', materia: '#1abc9c', topico: '#f39c12', subtopico: '#e74c3c' };
+                    return cores[d.data.tipo] || '#95a5a6';
+                });
+
+            nodeUpdate.select('text')
+                .style('fill-opacity', 1);
+
+            node.exit().transition().duration(duration)
+                .attr('transform', () => `translate(${source.y},${source.x})`)
+                .remove();
+
+            // Guarda posições antigas
+            nodes.forEach(d => {
+                d.x0 = d.x;
+                d.y0 = d.y;
+            });
+        }
+
+        function diagonal(s, d) {
+            // Curva orgânica estilo mapa mental
+            const midY = (s.y + d.y) / 2;
+            return `M ${s.y} ${s.x}
+                    C ${midY} ${s.x},
+                      ${midY} ${d.x},
+                      ${d.y} ${d.x}`;
+        }
+
+        function clicarNo(d) {
+            if (d.data.tipo === 'subtopico') {
+                // Seleciona o subtópico e carrega conteúdo embaixo
+                const sub = encontrarSubtopico(d.data.refId);
+                if (sub) {
+                    SUBTOPICO_ATUAL = sub;
+                    atualizarSelecaoVisual();
+                    selecionarSubtopico(d.data.refId);
+                }
+            } else {
+                // Colapsa / expande
+                if (d.children) {
+                    d._children = d.children;
+                    d.children = null;
+                } else if (d._children) {
+                    d.children = d._children;
+                    d._children = null;
+                }
+                atualizarMapa(d);
+            }
+        }
+
+        function atualizarSelecaoVisual() {
+            d3.selectAll('.node').classed('selecionado', function(d) {
+                return SUBTOPICO_ATUAL
+                    && d.data.tipo === 'subtopico'
+                    && d.data.refId === SUBTOPICO_ATUAL.id;
+            });
+        }
+
+        // ====== CONTROLES DO MAPA ======
+        function zoomIn() {
+            svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.4);
+        }
+        function zoomOut() {
+            svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.7);
+        }
+        function resetZoom() {
+            svg.transition().duration(300).call(zoomBehavior.transform, d3.zoomIdentity);
+        }
+        function expandirTudo() {
+            root.each(d => { if (d._children) { d.children = d._children; d._children = null; } });
+            atualizarMapa(root);
+        }
+        function colapsarTudo() {
+            root.each(d => {
+                if (d.depth >= 1 && d.children) {
+                    d._children = d.children;
+                    d.children = null;
+                }
+            });
+            atualizarMapa(root);
+        }
+
+        // ==========================================
+        // CONTEÚDO DO SUBTÓPICO
+        // ==========================================
+        function selecionarSubtopico(id) {
+            const sub = encontrarSubtopico(id);
+            if (!sub) return;
+
+            SUBTOPICO_ATUAL = sub;
+            document.getElementById('conteudo-area').style.display = 'block';
+            document.getElementById('titulo-subtopico').innerText =
+                `📄 ${sub.numero || ''} ${sub.nome}`.trim();
+
+            renderizarConteudos(sub);
+            trocarTab('material');
+
+            // Rola até o conteúdo
+            setTimeout(() => {
+                document.getElementById('conteudo-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+
+        function encontrarSubtopico(id) {
+            for (const plano of ARVORE) {
+                for (const materia of plano.materias) {
+                    for (const topico of materia.topicos) {
+                        for (const sub of topico.subtopicos) {
+                            if (sub.id === id) return sub;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function renderizarConteudos(sub) {
+            const tipos = { material: [], resumo: [], link: [], pdf: [] };
+            sub.conteudos.forEach(c => { if (tipos[c.tipo]) tipos[c.tipo].push(c); });
+
+            Object.keys(tipos).forEach(tipo => {
+                const container = document.getElementById(`tab-${tipo}`);
+                let html = '';
+
+                if (!tipos[tipo].length) {
+                    html = `<p style="color:#7f8c8d;">Nenhum conteúdo de <strong>${tipo}</strong> ainda.</p>`;
+                } else {
+                    tipos[tipo].forEach(c => {
+                        html += `
+                            <div class="conteudo-bloco">
+                                <button class="btn-del" onclick="deletarItem('conteudos', ${c.id})" title="Excluir">✕</button>
+                                ${c.titulo ? `<h4>${escapeHtml(c.titulo)}</h4>` : ''}
+                                ${renderizarCorpoConteudo(c, tipo)}
+                            </div>
+                        `;
+                    });
+                }
+                html += `<button class="tab-add-btn" onclick="abrirCriacaoConteudo('${tipo}')">+ Adicionar ${rotuloTipo(tipo)}</button>`;
+                container.innerHTML = html;
+            });
+        }
+
+        function renderizarCorpoConteudo(c, tipo) {
+            if (tipo === 'link') return `<a href="${escapeHtml(c.url_link)}" target="_blank" rel="noopener">${escapeHtml(c.url_link)}</a>`;
+            if (tipo === 'pdf') return `<a href="${escapeHtml(c.url_arquivo)}" target="_blank" rel="noopener">📄 Abrir PDF: ${escapeHtml(c.titulo || 'documento')}</a>`;
+            return `<p>${escapeHtml(c.texto || '').replace(/\n/g, '<br>')}</p>`;
+        }
+
+        function rotuloTipo(tipo) {
+            return { material: 'Material', resumo: 'Resumo', link: 'Link', pdf: 'PDF' }[tipo];
+        }
+
+        // ==========================================
+        // TABS
+        // ==========================================
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => trocarTab(btn.dataset.tab));
+        });
+
+        function trocarTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        // ==========================================
+        // CRIAÇÃO (plano/matéria/tópico/subtópico)
+        // ==========================================
+        function criarPlano() { abrirCriacao('plano', null); }
+
+        function abrirCriacao(tipo, paiId) {
+            TIPO_CRIACAO = tipo;
+            CONTEXTO_CRIACAO = paiId;
+
+            const titulos = {
+                plano: 'Novo Plano de Estudos',
+                materia: 'Nova Matéria',
+                topico: 'Novo Tópico',
+                subtopico: 'Novo Subtópico'
+            };
+            document.getElementById('modal-titulo').innerText = titulos[tipo];
+
+            let campos = '';
+            if (tipo === 'plano') {
+                campos = `<input type="text" id="campo-nome" placeholder="Ex: Engenharia Elétrica" required>
+                          <textarea id="campo-descricao" placeholder="Descrição (opcional)"></textarea>`;
+            } else if (tipo === 'materia') {
+                campos = `<input type="text" id="campo-nome" placeholder="Ex: Cálculo I" required>`;
+            } else {
+                campos = `<input type="text" id="campo-numero" placeholder="Número (ex: 1 ou 1.1)">
+                          <input type="text" id="campo-nome" placeholder="Nome" required>`;
+            }
+            document.getElementById('modal-campos').innerHTML = campos;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function fecharModal() {
+            document.getElementById('modal').style.display = 'none';
+            TIPO_CRIACAO = null;
+            CONTEXTO_CRIACAO = null;
+        }
+
+        async function confirmarModal() {
+            const nome = document.getElementById('campo-nome')?.value.trim();
+            const descricao = document.getElementById('campo-descricao')?.value.trim();
+            const numero = document.getElementById('campo-numero')?.value.trim();
+
+            if (!nome) { mostrarToast('Preencha o nome', 'error'); return; }
+
+            let url, body;
+            if (TIPO_CRIACAO === 'plano') {
+                url = '/api/estudos/planos';
+                body = { nome, descricao: descricao || null };
+            } else if (TIPO_CRIACAO === 'materia') {
+                url = `/api/estudos/planos/${CONTEXTO_CRIACAO}/materias`;
+                body = { nome };
+            } else if (TIPO_CRIACAO === 'topico') {
+                url = `/api/estudos/materias/${CONTEXTO_CRIACAO}/topicos`;
+                body = { nome, numero: numero || null };
+            } else if (TIPO_CRIACAO === 'subtopico') {
+                url = `/api/estudos/topicos/${CONTEXTO_CRIACAO}/subtopicos`;
+                body = { nome, numero: numero || null };
+            }
+
+            const resp = await apiFetch(url, { method: 'POST', body: JSON.stringify(body) });
+
+            if (resp && resp.ok) {
+                mostrarToast('Criado com sucesso!', 'success');
+                fecharModal();
+                await carregarArvore();
+            } else if (resp) {
+                const err = await resp.json();
+                mostrarToast(err.detail || 'Erro ao criar', 'error');
+            }
+        }
+
+        // ==========================================
+        // MODAL CONTEÚDO
+        // ==========================================
+        function abrirCriacaoConteudo(tipo) {
+            if (!SUBTOPICO_ATUAL) { mostrarToast('Selecione um subtópico primeiro', 'error'); return; }
+            TIPO_CONTEUDO = tipo;
+
+            document.getElementById('modal-conteudo-titulo').innerText = `Adicionar ${rotuloTipo(tipo)}`;
+
+            let campos = `<input type="text" id="conteudo-titulo" placeholder="Título (opcional)">`;
+            if (tipo === 'material' || tipo === 'resumo') {
+                campos += `<textarea id="conteudo-texto" placeholder="Escreva aqui..."></textarea>`;
+            } else if (tipo === 'link') {
+                campos += `<input type="url" id="conteudo-link" placeholder="https://...">`;
+            } else if (tipo === 'pdf') {
+                campos += `<input type="file" id="conteudo-arquivo" accept="application/pdf">`;
+            }
+            document.getElementById('modal-conteudo-campos').innerHTML = campos;
+            document.getElementById('modal-conteudo').style.display = 'flex';
+        }
+
+        function fecharModalConteudo() {
+            document.getElementById('modal-conteudo').style.display = 'none';
+            TIPO_CONTEUDO = null;
+        }
+
+        async function confirmarModalConteudo() {
+            const titulo = document.getElementById('conteudo-titulo')?.value.trim();
+            const texto = document.getElementById('conteudo-texto')?.value.trim();
+            const link = document.getElementById('conteudo-link')?.value.trim();
+            const arquivo = document.getElementById('conteudo-arquivo')?.files[0];
+
+            if (TIPO_CONTEUDO === 'link' && !link) { mostrarToast('Informe o link', 'error'); return; }
+            if (TIPO_CONTEUDO === 'pdf' && !arquivo) { mostrarToast('Selecione um PDF', 'error'); return; }
+
+            const formData = new FormData();
+            formData.append('tipo', TIPO_CONTEUDO);
+            if (titulo) formData.append('titulo', titulo);
+            if (texto) formData.append('texto', texto);
+            if (link) formData.append('url_link', link);
+            if (arquivo) formData.append('arquivo', arquivo);
+
+            const resp = await apiFetch(`/api/estudos/subtopicos/${SUBTOPICO_ATUAL.id}/conteudo`, {
+                method: 'POST', body: formData
+            });
+
+            if (resp && resp.ok) {
+                mostrarToast('Conteúdo adicionado!', 'success');
+                fecharModalConteudo();
+                await carregarArvore();
+            } else if (resp) {
+                const err = await resp.json();
+                mostrarToast(err.detail || 'Erro ao adicionar', 'error');
+            }
+        }
+
+        // ==========================================
+        // DELETAR
+        // ==========================================
+        async function deletarItem(tipo, id) {
+            const mensagens = {
+                planos: 'Excluir este plano inteiro? Tudo será apagado.',
+                materias: 'Excluir esta matéria?',
+                conteudos: 'Excluir este conteúdo?'
+            };
+            if (!confirm(mensagens[tipo] || 'Tem certeza?')) return;
+
+            const resp = await apiFetch(`/api/estudos/${tipo}/${id}`, { method: 'DELETE' });
+
+            if (resp && resp.ok) {
+                mostrarToast('Excluído', 'success');
+                if (tipo === 'planos' && PLANO_ATUAL && PLANO_ATUAL.id === id) {
+                    PLANO_ATUAL = null;
+                    SUBTOPICO_ATUAL = null;
+                    document.getElementById('mapa-container').style.display = 'none';
+                    document.getElementById('conteudo-area').style.display = 'none';
+                    document.getElementById('bem-vindo').style.display = 'block';
+                }
+                await carregarArvore();
+            } else if (resp) {
+                const err = await resp.json();
+                mostrarToast(err.detail || 'Erro ao excluir', 'error');
+            }
+        }
+
+        // ==========================================
+        // HELPERS
+        // ==========================================
+        function escapeHtml(texto) {
+            if (texto == null) return '';
+            return String(texto)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function truncar(texto, max) {
+            if (!texto) return '';
+            return texto.length > max ? texto.slice(0, max - 1) + '…' : texto;
+        }
+
+        // Redimensionamento responsivo do SVG
+        window.addEventListener('resize', () => {
+            if (PLANO_ATUAL && document.getElementById('mapa-container').style.display !== 'none') {
+                renderizarMapa(PLANO_ATUAL);
+            }
+        });
+    </script>
+</body>
+</html>

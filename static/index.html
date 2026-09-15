@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kahan - Login</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="login-page">
+    <div class="login-box">
+        <h1>📚 Kahan</h1>
+        <p class="subtitle">Plataforma de Estudos</p>
+        <input type="email" id="email" placeholder="E-mail" autocomplete="username">
+        <input type="password" id="senha" placeholder="Senha" autocomplete="current-password">
+        <button id="btn-login" onclick="fazerLogin()">Entrar</button>
+        <div id="erro" class="erro"></div>
+    </div>
+
+    <script>
+        async function fazerLogin() {
+            const email = document.getElementById('email').value.trim();
+            const senha = document.getElementById('senha').value;
+            const erro = document.getElementById('erro');
+            const btn = document.getElementById('btn-login');
+            erro.innerText = '';
+
+            if (!email || !senha) {
+                erro.innerText = 'Preencha e-mail e senha';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = 'Entrando...';
+
+            const formData = new URLSearchParams();
+            formData.append('username', email);
+            formData.append('password', senha);
+
+            try {
+                const resp = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (resp.ok) {
+                    const data = await resp.json();
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('usuario', JSON.stringify(data.usuario));
+
+                    // Redireciona conforme o role
+                    if (data.usuario.role === 'admin') {
+                        window.location.href = '/admin.html';
+                    } else {
+                        window.location.href = '/dashboard.html';
+                    }
+                } else {
+                    const err = await resp.json();
+                    erro.innerText = err.detail || 'Erro ao logar';
+                    btn.disabled = false;
+                    btn.innerText = 'Entrar';
+                }
+            } catch (e) {
+                erro.innerText = 'Erro de conexão com o servidor';
+                btn.disabled = false;
+                btn.innerText = 'Entrar';
+            }
+        }
+
+        // Enter para logar
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') fazerLogin();
+        });
+    </script>
+</body>
+</html>
