@@ -79,3 +79,7 @@ class SubtopicoUpdate(BaseModel):
 # ============ STATUS ============
 class StatusUpdate(BaseModel):
     status: str  # "adicionado" | "em_estudo" | "concluido"
+
+# Cores
+class UsuarioCorUpdate(BaseModel):
+    cor_raiz: str

@@ -16,6 +16,7 @@ class Usuario(Base):
     senha_hash = Column(String(255), nullable=False)
     role = Column(String(20), default="aluno")
     licenca_ativa = Column(Boolean, default=True)
+    cor_raiz = Column(String(20), default="#8e44ad") 
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
 
     planos = relationship("PlanoEstudo", back_populates="usuario", cascade="all, delete-orphan")
