@@ -1,7 +1,12 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Text, DateTime, Float
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
+
+
+# ==========================================================
+# USUÁRIOS
+# ==========================================================
 
 class Usuario(Base):
     __tablename__ = "usuarios"
@@ -9,13 +14,32 @@ class Usuario(Base):
     nome = Column(String(100), nullable=False)
     email = Column(String(150), unique=True, index=True, nullable=False)
     senha_hash = Column(String(255), nullable=False)
-    role = Column(String(20), default="aluno")  # "aluno" ou "admin"
+    role = Column(String(20), default="aluno")
     licenca_ativa = Column(Boolean, default=True)
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
 
     planos = relationship("PlanoEstudo", back_populates="usuario", cascade="all, delete-orphan")
     acessos = relationship("MetricaAcesso", back_populates="usuario", cascade="all, delete-orphan")
+    categorias = relationship("Categoria", back_populates="usuario", cascade="all, delete-orphan")
 
+
+# ==========================================================
+# CATEGORIAS
+# ==========================================================
+
+class Categoria(Base):
+    __tablename__ = "categorias"
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    nome = Column(String(80), nullable=False)
+    criado_em = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("Usuario", back_populates="categorias")
+
+
+# ==========================================================
+# HIERARQUIA DE ESTUDOS
+# ==========================================================
 
 class PlanoEstudo(Base):
     __tablename__ = "planos_estudo"
@@ -23,9 +47,11 @@ class PlanoEstudo(Base):
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     nome = Column(String(150), nullable=False)
     descricao = Column(Text)
+    categoria_id = Column(Integer, ForeignKey("categorias.id", ondelete="SET NULL"), nullable=True)
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
 
     usuario = relationship("Usuario", back_populates="planos")
+    categoria = relationship("Categoria", foreign_keys=[categoria_id])
     materias = relationship("Materia", back_populates="plano", cascade="all, delete-orphan")
 
 
@@ -35,8 +61,10 @@ class Materia(Base):
     plano_id = Column(Integer, ForeignKey("planos_estudo.id"), nullable=False)
     nome = Column(String(150), nullable=False)
     ordem = Column(Integer, default=0)
+    categoria_id = Column(Integer, ForeignKey("categorias.id", ondelete="SET NULL"), nullable=True)
 
     plano = relationship("PlanoEstudo", back_populates="materias")
+    categoria = relationship("Categoria", foreign_keys=[categoria_id])
     topicos = relationship("Topico", back_populates="materia", cascade="all, delete-orphan")
 
 
@@ -47,8 +75,11 @@ class Topico(Base):
     numero = Column(String(20))
     nome = Column(String(150), nullable=False)
     ordem = Column(Integer, default=0)
+    categoria_id = Column(Integer, ForeignKey("categorias.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String(20), default="adicionado", nullable=False)
 
     materia = relationship("Materia", back_populates="topicos")
+    categoria = relationship("Categoria", foreign_keys=[categoria_id])
     subtopicos = relationship("Subtopico", back_populates="topico", cascade="all, delete-orphan")
 
 
@@ -59,17 +90,24 @@ class Subtopico(Base):
     numero = Column(String(20))
     nome = Column(String(150), nullable=False)
     ordem = Column(Integer, default=0)
+    categoria_id = Column(Integer, ForeignKey("categorias.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String(20), default="adicionado", nullable=False)
 
     topico = relationship("Topico", back_populates="subtopicos")
+    categoria = relationship("Categoria", foreign_keys=[categoria_id])
     conteudos = relationship("Conteudo", back_populates="subtopico", cascade="all, delete-orphan")
     perguntas = relationship("Pergunta", back_populates="subtopico", cascade="all, delete-orphan")
 
+
+# ==========================================================
+# CONTEÚDOS
+# ==========================================================
 
 class Conteudo(Base):
     __tablename__ = "conteudos"
     id = Column(Integer, primary_key=True, index=True)
     subtopico_id = Column(Integer, ForeignKey("subtopicos.id"), nullable=False)
-    tipo = Column(String(20), nullable=False)  # material, resumo, link, pdf
+    tipo = Column(String(20), nullable=False)
     titulo = Column(String(200))
     texto = Column(Text)
     url_arquivo = Column(String(500))
@@ -83,14 +121,18 @@ class Pergunta(Base):
     __tablename__ = "perguntas"
     id = Column(Integer, primary_key=True, index=True)
     subtopico_id = Column(Integer, ForeignKey("subtopicos.id"), nullable=False)
-    tipo = Column(String(30), nullable=False)  # multipla_escolha, v_f, dissertativa
+    tipo = Column(String(30), nullable=False)
     enunciado = Column(Text, nullable=False)
-    opcoes = Column(Text)  # JSON em string
+    opcoes = Column(Text)
     resposta_correta = Column(Text)
     explicacao = Column(Text)
 
     subtopico = relationship("Subtopico", back_populates="perguntas")
 
+
+# ==========================================================
+# PROGRESSO E MÉTRICAS
+# ==========================================================
 
 class Progresso(Base):
     __tablename__ = "progresso"
