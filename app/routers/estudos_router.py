@@ -164,6 +164,90 @@ def deletar_categoria(categoria_id: int, usuario=Depends(get_usuario_atual), db:
 
 
 # ==========================================================
+# TIPOS DE MATERIAL
+# ==========================================================
+
+def serializar_tipo(t):
+    if t is None: return None
+    return {"id": t.id, "nome": t.nome}
+
+
+def verificar_tipo_do_usuario(tipo_id: int, usuario_id: int, db: Session):
+    if tipo_id is None:
+        return None
+    t = db.query(models.TipoMaterial).filter(
+        models.TipoMaterial.id == tipo_id,
+        models.TipoMaterial.usuario_id == usuario_id
+    ).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Tipo não encontrado")
+    return t
+
+
+@router.get("/tipos-material")
+def listar_tipos(usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    tipos = db.query(models.TipoMaterial).filter(
+        models.TipoMaterial.usuario_id == usuario.id
+    ).order_by(models.TipoMaterial.nome.asc()).all()
+
+    # Se o usuário ainda não tem nenhum tipo, cria os 4 padrão
+    if not tipos:
+        padrao = ["Livro", "Anotação", "Trabalho", "Apostila"]
+        for nome in padrao:
+            db.add(models.TipoMaterial(usuario_id=usuario.id, nome=nome))
+        db.commit()
+        tipos = db.query(models.TipoMaterial).filter(
+            models.TipoMaterial.usuario_id == usuario.id
+        ).order_by(models.TipoMaterial.nome.asc()).all()
+
+    return [serializar_tipo(t) for t in tipos]
+
+
+@router.post("/tipos-material")
+def criar_tipo(dados: schemas.TipoMaterialCreate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    nome = dados.nome.strip()
+    if not nome:
+        raise HTTPException(status_code=400, detail="Nome não pode ser vazio")
+    existe = db.query(models.TipoMaterial).filter(
+        models.TipoMaterial.usuario_id == usuario.id,
+        models.TipoMaterial.nome == nome
+    ).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Já existe um tipo com esse nome")
+    t = models.TipoMaterial(usuario_id=usuario.id, nome=nome)
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return serializar_tipo(t)
+
+
+@router.patch("/tipos-material/{tipo_id}")
+def editar_tipo(tipo_id: int, dados: schemas.TipoMaterialUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    t = verificar_tipo_do_usuario(tipo_id, usuario.id, db)
+    nome = dados.nome.strip()
+    if not nome:
+        raise HTTPException(status_code=400, detail="Nome não pode ser vazio")
+    existe = db.query(models.TipoMaterial).filter(
+        models.TipoMaterial.usuario_id == usuario.id,
+        models.TipoMaterial.nome == nome,
+        models.TipoMaterial.id != tipo_id
+    ).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Já existe outro tipo com esse nome")
+    t.nome = nome
+    db.commit()
+    db.refresh(t)
+    return serializar_tipo(t)
+
+
+@router.delete("/tipos-material/{tipo_id}")
+def deletar_tipo(tipo_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    t = verificar_tipo_do_usuario(tipo_id, usuario.id, db)
+    db.delete(t)
+    db.commit()
+    return {"mensagem": "Tipo deletado"}
+
+# ==========================================================
 # ÁRVORE COMPLETA
 # ==========================================================
 
@@ -576,16 +660,18 @@ def listar_materiais(usuario=Depends(get_usuario_atual), db: Session = Depends(g
             "url_link": m.url_link,
             "materia_id": m.materia_id,
             "materia_nome": m.materia.nome if m.materia else None,
+            "tipo_id": m.tipo_id,
+            "tipo_nome": m.tipo.nome if m.tipo else None,
             "criado_em": m.criado_em.isoformat() if m.criado_em else None,
         }
         for m in materiais
     ]
 
-
 @router.post("/materiais")
 def criar_material(
     nome: str = Form(...),
     materia_id: str = Form(None),
+    tipo_id: str = Form(None),
     url_link: str = Form(None),
     arquivo: UploadFile = File(None),
     usuario=Depends(get_usuario_atual),
@@ -601,7 +687,6 @@ def criar_material(
             mat_id = int(materia_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="materia_id inválido")
-        # Valida que a matéria é do usuário
         materia = db.query(models.Materia).join(models.PlanoEstudo).filter(
             models.Materia.id == mat_id,
             models.PlanoEstudo.usuario_id == usuario.id
@@ -609,14 +694,19 @@ def criar_material(
         if not materia:
             raise HTTPException(status_code=404, detail="Matéria não encontrada")
 
+    tip_id = None
+    if tipo_id and tipo_id.strip():
+        try:
+            tip_id = int(tipo_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="tipo_id inválido")
+        verificar_tipo_do_usuario(tip_id, usuario.id, db)
+
     url_arquivo = None
     if arquivo and arquivo.filename:
         ext = os.path.splitext(arquivo.filename)[1].lower()
         if ext not in EXTENSOES_PERMITIDAS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Extensão {ext} não permitida. Use: {', '.join(sorted(EXTENSOES_PERMITIDAS))}"
-            )
+            raise HTTPException(status_code=400, detail=f"Extensão {ext} não permitida.")
         nome_unico = f"{uuid.uuid4()}_{arquivo.filename}"
         caminho = os.path.join(UPLOAD_DIR, nome_unico)
         with open(caminho, "wb") as f:
@@ -626,6 +716,7 @@ def criar_material(
     material = models.Material(
         usuario_id=usuario.id,
         materia_id=mat_id,
+        tipo_id=tip_id,
         nome=nome_limpo,
         url_arquivo=url_arquivo,
         url_link=url_link.strip() if url_link else None,
@@ -634,11 +725,9 @@ def criar_material(
     db.commit()
     db.refresh(material)
     return {
-        "id": material.id,
-        "nome": material.nome,
-        "url_arquivo": material.url_arquivo,
-        "url_link": material.url_link,
-        "materia_id": material.materia_id,
+        "id": material.id, "nome": material.nome,
+        "url_arquivo": material.url_arquivo, "url_link": material.url_link,
+        "materia_id": material.materia_id, "tipo_id": material.tipo_id,
     }
 
 
@@ -647,6 +736,7 @@ def editar_material(
     material_id: int,
     nome: str = Form(None),
     materia_id: str = Form(None),
+    tipo_id: str = Form(None),
     url_link: str = Form(None),
     arquivo: UploadFile = File(None),
     usuario=Depends(get_usuario_atual),
@@ -681,17 +771,24 @@ def editar_material(
                 raise HTTPException(status_code=404, detail="Matéria não encontrada")
             material.materia_id = mat_id
 
+    if tipo_id is not None:
+        if tipo_id.strip() == "":
+            material.tipo_id = None
+        else:
+            try:
+                tip_id = int(tipo_id)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="tipo_id inválido")
+            verificar_tipo_do_usuario(tip_id, usuario.id, db)
+            material.tipo_id = tip_id
+
     if url_link is not None:
         material.url_link = url_link.strip() or None
 
     if arquivo and arquivo.filename:
         ext = os.path.splitext(arquivo.filename)[1].lower()
         if ext not in EXTENSOES_PERMITIDAS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Extensão {ext} não permitida. Use: {', '.join(sorted(EXTENSOES_PERMITIDAS))}"
-            )
-        # Remove o arquivo antigo, se houver
+            raise HTTPException(status_code=400, detail=f"Extensão {ext} não permitida.")
         if material.url_arquivo:
             antigo = material.url_arquivo.lstrip("/")
             if os.path.exists(antigo):
@@ -705,11 +802,9 @@ def editar_material(
     db.commit()
     db.refresh(material)
     return {
-        "id": material.id,
-        "nome": material.nome,
-        "url_arquivo": material.url_arquivo,
-        "url_link": material.url_link,
-        "materia_id": material.materia_id,
+        "id": material.id, "nome": material.nome,
+        "url_arquivo": material.url_arquivo, "url_link": material.url_link,
+        "materia_id": material.materia_id, "tipo_id": material.tipo_id,
     }
 
 

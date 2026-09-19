@@ -107,3 +107,10 @@ class AgendamentoCreate(BaseModel):
 class AgendamentoUpdate(BaseModel):
     data_inicio: str
     data_fim: str
+
+# ============ TIPOS DE MATERIAL ============
+class TipoMaterialCreate(BaseModel):
+    nome: str
+
+class TipoMaterialUpdate(BaseModel):
+    nome: str

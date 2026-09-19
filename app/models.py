@@ -37,6 +37,14 @@ class Categoria(Base):
 
     usuario = relationship("Usuario", back_populates="categorias")
 
+class TipoMaterial(Base):
+    __tablename__ = "tipos_material"
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    nome = Column(String(80), nullable=False)
+    criado_em = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("Usuario")
 
 # ==========================================================
 # HIERARQUIA DE ESTUDOS
@@ -111,6 +119,7 @@ class Material(Base):
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
     materia_id = Column(Integer, ForeignKey("materias.id", ondelete="SET NULL"), nullable=True)
+    tipo_id = Column(Integer, ForeignKey("tipos_material.id", ondelete="SET NULL"), nullable=True)
     nome = Column(String(200), nullable=False)
     url_arquivo = Column(String(500))
     url_link = Column(String(500))
@@ -118,6 +127,7 @@ class Material(Base):
 
     usuario = relationship("Usuario")
     materia = relationship("Materia")
+    tipo = relationship("TipoMaterial", foreign_keys=[tipo_id])
 
 # ==========================================================
 # CONTEÚDOS

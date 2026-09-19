@@ -35,6 +35,8 @@
         }
         .parte-inferior { flex: 1; overflow-y: auto; padding: 25px 30px; background: white; }
         .parte-inferior .bem-vindo-conteudo { text-align: center; color: #7f8c8d; margin-top: 60px; }
+
+        /* MINHA CONTA */
         .minha-conta-wrap { height: 100%; overflow-y: auto; padding: 25px 35px; }
         .minha-conta-dados {
             background: white; border-radius: 10px; padding: 20px 25px;
@@ -73,10 +75,9 @@
             font-weight: 600; font-size: 0.85rem; margin-top: 10px; transition: 0.2s;
         }
         .btn-nova-categoria:hover { background: #e0e6e6; border-color: #1abc9c; color: #1abc9c; }
-        .materiais-wrap {
-            height: 100%; display: flex; flex-direction: column;
-            background: white; overflow: hidden;
-        }
+
+        /* MATERIAIS */
+        .materiais-wrap { height: 100%; display: flex; flex-direction: column; background: white; overflow: hidden; }
         .materiais-header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 18px 25px; border-bottom: 1px solid #ecf0f1; flex-shrink: 0;
@@ -137,6 +138,8 @@
             display: inline-block;
         }
         .vazio-tabela { text-align: center; color: #7f8c8d; padding: 40px; font-size: 0.9rem; }
+
+        /* MAPA */
         .mapa-controles-flutuante {
             position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 10;
         }
@@ -171,6 +174,8 @@
         }
         .node.raiz text.porcentagem-no { font-size: 11px; }
         .link { fill: none; stroke: #bdc3c7; stroke-width: 1.5px; }
+
+        /* LISTA */
         .lista-scroll { height: 100%; overflow-y: auto; padding: 20px 30px; }
         .lista-plano { margin-bottom: 14px; }
         .lista-item {
@@ -213,6 +218,8 @@
             cursor: pointer; font-size: 0.85rem; padding: 0 4px; flex-shrink: 0;
         }
         .btn-del:hover { color: #c0392b; }
+
+        /* DROPDOWN */
         .dropdown-status {
             position: fixed; background: white; border-radius: 10px;
             box-shadow: 0 12px 30px rgba(0,0,0,0.18); padding: 6px;
@@ -250,6 +257,8 @@
             cursor: pointer; border-radius: 6px;
         }
         .dropdown-status .voltar-submenu:hover { background: #f4f7f6; }
+
+        /* CONTEÚDO */
         #titulo-subtopico {
             font-size: 1.25rem; color: #2c3e50; margin-bottom: 15px;
             border-bottom: 2px solid #1abc9c; padding-bottom: 8px;
@@ -279,6 +288,8 @@
             font-weight: 600; font-size: 0.9rem; margin-top: 10px;
         }
         .tab-add-btn:hover { background: #e0e6e6; border-color: #1abc9c; color: #1abc9c; }
+
+        /* MODAIS */
         .modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.5);
             display: flex; justify-content: center; align-items: center; z-index: 3000;
@@ -307,8 +318,186 @@
         .btn-secondary { background: #ecf0f1; color: #2c3e50; }
         .btn-secondary:hover { background: #d5dbdb; }
 
-        .tab-content[data-tipo="subtopicos"] {
-            display: none;
+        /* =========================================================
+           AGENDA
+           ========================================================= */
+        .agenda-wrap {
+            height: 100%; display: flex; flex-direction: column;
+            background: white; overflow: hidden;
+        }
+        .agenda-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 22px; border-bottom: 1px solid #ecf0f1;
+            flex-shrink: 0; flex-wrap: wrap; gap: 12px;
+        }
+        .agenda-views { display: flex; gap: 6px; }
+        .agenda-views button {
+            background: #ecf0f1; border: none; padding: 8px 14px;
+            border-radius: 6px; cursor: pointer; font-weight: 600;
+            font-size: 0.85rem; color: #7f8c8d; transition: 0.15s;
+        }
+        .agenda-views button:hover { background: #d5dbdb; }
+        .agenda-views button.ativo { background: #1abc9c; color: white; }
+
+        .agenda-nav { display: flex; align-items: center; gap: 8px; }
+        .agenda-nav .titulo-periodo {
+            font-weight: 700; color: #2c3e50; min-width: 180px;
+            text-align: center; font-size: 0.95rem;
+        }
+        .agenda-nav button {
+            background: white; border: 1px solid #bdc3c7; color: #7f8c8d;
+            padding: 6px 12px; border-radius: 6px; cursor: pointer;
+            font-size: 0.85rem; font-weight: 600;
+        }
+        .agenda-nav button:hover { border-color: #1abc9c; color: #1abc9c; }
+
+        .agenda-body { flex: 1; overflow: auto; padding: 20px; }
+
+        /* View Mensal */
+        .grade-mensal {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-auto-rows: minmax(110px, auto);
+            border: 1px solid #ecf0f1; border-radius: 8px;
+            overflow: hidden;
+        }
+        .dia-cabecalho {
+            background: #2c3e50; color: white; font-size: 0.75rem;
+            text-transform: uppercase; font-weight: 700;
+            text-align: center; padding: 10px;
+            letter-spacing: 0.5px;
+        }
+        .dia-celula {
+            border-right: 1px solid #ecf0f1; border-bottom: 1px solid #ecf0f1;
+            padding: 6px 8px; background: white; min-height: 110px;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .dia-celula.fora-do-mes { background: #fafcfb; color: #bdc3c7; }
+        .dia-celula.hoje { background: #e8f8f4; }
+        .dia-numero {
+            font-size: 0.85rem; font-weight: 700; color: #2c3e50;
+            margin-bottom: 4px;
+        }
+        .dia-celula.fora-do-mes .dia-numero { color: #bdc3c7; }
+        .dia-celula.hoje .dia-numero {
+            background: #1abc9c; color: white;
+            border-radius: 50%; width: 24px; height: 24px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .evento-mini {
+            font-size: 0.7rem; padding: 3px 6px; border-radius: 4px;
+            cursor: pointer; color: white; font-weight: 600;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            transition: 0.15s;
+        }
+        .evento-mini:hover { filter: brightness(1.1); }
+        .evento-mini.status-adicionado { background: #95a5a6; }
+        .evento-mini.status-em_estudo  { background: #f1c40f; color: #7d6608; }
+        .evento-mini.status-concluido  { background: #27ae60; }
+        .mais-eventos {
+            font-size: 0.68rem; color: #7f8c8d; font-weight: 600;
+            padding: 2px 4px; cursor: pointer;
+        }
+        .mais-eventos:hover { color: #1abc9c; }
+
+        /* View Semanal */
+        .grade-semanal {
+            display: grid;
+            grid-template-columns: 60px repeat(7, 1fr);
+            border: 1px solid #ecf0f1; border-radius: 8px;
+            overflow: hidden; background: white;
+        }
+        .hora-cabecalho, .dia-cabecalho-sem {
+            background: #2c3e50; color: white; font-size: 0.72rem;
+            text-transform: uppercase; font-weight: 700;
+            text-align: center; padding: 10px 4px;
+        }
+        .hora-label {
+            background: #fafcfb; border-right: 1px solid #ecf0f1;
+            border-bottom: 1px solid #ecf0f1; padding: 4px 8px;
+            font-size: 0.7rem; color: #7f8c8d; text-align: right;
+            height: 48px; display: flex; align-items: center; justify-content: flex-end;
+        }
+        .hora-celula {
+            border-right: 1px solid #ecf0f1; border-bottom: 1px solid #ecf0f1;
+            position: relative; height: 48px; background: white;
+        }
+        .hora-celula.hoje { background: #f4fbf9; }
+        .evento-semanal {
+            position: absolute; left: 2px; right: 2px;
+            border-radius: 4px; padding: 3px 5px;
+            font-size: 0.68rem; color: white; font-weight: 600;
+            cursor: pointer; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            z-index: 2;
+        }
+        .evento-semanal:hover { filter: brightness(1.1); z-index: 3; }
+        .evento-semanal.status-adicionado { background: #95a5a6; }
+        .evento-semanal.status-em_estudo  { background: #f1c40f; color: #7d6608; }
+        .evento-semanal.status-concluido  { background: #27ae60; }
+
+        /* View Lista */
+        .lista-eventos { display: flex; flex-direction: column; gap: 12px; }
+        .evento-card {
+            background: white; border-radius: 10px; padding: 16px 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            display: flex; align-items: center; gap: 16px;
+            border-left: 4px solid #95a5a6; transition: 0.15s;
+        }
+        .evento-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .evento-card.status-adicionado { border-left-color: #95a5a6; }
+        .evento-card.status-em_estudo  { border-left-color: #f1c40f; }
+        .evento-card.status-concluido  { border-left-color: #27ae60; }
+        .evento-card .info { flex: 1; }
+        .evento-card .data {
+            font-size: 0.85rem; font-weight: 700; color: #2c3e50;
+            margin-bottom: 4px;
+        }
+        .evento-card .node-nome {
+            font-size: 1rem; font-weight: 600; color: #16a085;
+        }
+        .evento-card .caminho {
+            font-size: 0.78rem; color: #7f8c8d; margin-top: 3px;
+        }
+        .evento-card .acoes { display: flex; gap: 6px; }
+        .evento-card .acoes button {
+            background: transparent; border: 1px solid #bdc3c7; color: #7f8c8d;
+            border-radius: 4px; width: 32px; height: 32px; cursor: pointer;
+            font-size: 0.85rem; padding: 0;
+        }
+        .evento-card .acoes button:hover {
+            background: #1abc9c; border-color: #1abc9c; color: white;
+        }
+        .evento-card .acoes button.excluir:hover {
+            background: #e74c3c; border-color: #e74c3c;
+        }
+        .agenda-vazia {
+            text-align: center; color: #7f8c8d; padding: 60px 20px;
+            font-size: 0.95rem;
+        }
+
+        /* Aba Agenda dentro do nó */
+        .agendamento-linha {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; background: #f9fbfa;
+            border-left: 4px solid #95a5a6; border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        .agendamento-linha.status-adicionado { border-left-color: #95a5a6; }
+        .agendamento-linha.status-em_estudo  { border-left-color: #f1c40f; }
+        .agendamento-linha.status-concluido  { border-left-color: #27ae60; }
+        .agendamento-linha .info { flex: 1; font-size: 0.9rem; color: #2c3e50; }
+        .agendamento-linha .info strong { color: #16a085; }
+        .agendamento-linha button {
+            background: transparent; border: 1px solid #bdc3c7; color: #7f8c8d;
+            border-radius: 4px; width: 26px; height: 26px; cursor: pointer;
+            font-size: 0.8rem; padding: 0;
+        }
+        .agendamento-linha button:hover {
+            background: #1abc9c; border-color: #1abc9c; color: white;
+        }
+        .agendamento-linha button.excluir:hover {
+            background: #e74c3c; border-color: #e74c3c;
         }
     </style>
 </head>
@@ -319,6 +508,7 @@
             <button id="btn-modo-mapa" class="ativo" onclick="mudarModo('mapa')">🗺️ Mapa</button>
             <button id="btn-modo-lista" onclick="mudarModo('lista')">📋 Lista</button>
             <button id="btn-modo-materiais" onclick="mudarModo('materiais')">📚 Materiais</button>
+            <button id="btn-modo-agenda" onclick="mudarModo('agenda')">📅 Agendamento</button>
             <button id="btn-modo-conta" onclick="mudarModo('conta')">👤 Minha Conta</button>
             <div class="espaco-flex"></div>
             <button class="primario" onclick="criarPlano()">+ Novo Plano</button>
@@ -391,9 +581,29 @@
                     <div id="tab-link" class="tab-content"></div>
                     <div id="tab-pdf" class="tab-content"></div>
                     <div id="tab-subtopicos" class="tab-content"></div>
+                    <div id="tab-agenda" class="tab-content"></div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Container da Agenda (ocupa o painel direito inteiro quando ativo) -->
+    <div id="agenda-container" class="agenda-wrap" style="display:none; position:fixed; top:0; left:150px; right:0; bottom:0; z-index:500;">
+        <div class="agenda-header">
+            <div class="agenda-views">
+                <button data-view="mensal" class="ativo" onclick="mudarViewAgenda('mensal')">🗓️ Mensal</button>
+                <button data-view="semanal" onclick="mudarViewAgenda('semanal')">📆 Semanal</button>
+                <button data-view="lista" onclick="mudarViewAgenda('lista')">📋 Lista</button>
+            </div>
+            <div class="agenda-nav" id="agenda-nav">
+                <button onclick="agendaAnterior()" title="Anterior">◀</button>
+                <span class="titulo-periodo" id="agenda-titulo-periodo">—</span>
+                <button onclick="agendaProximo()" title="Próximo">▶</button>
+                <button onclick="agendaHoje()">Hoje</button>
+                <button class="btn btn-primary" style="margin-left:12px;" onclick="abrirCriacaoAgendamento()">+ Novo</button>
+            </div>
+        </div>
+        <div class="agenda-body" id="agenda-body"></div>
     </div>
 
     <div id="modal" class="modal" style="display:none;">
@@ -451,6 +661,17 @@
         </div>
     </div>
 
+    <div id="modal-agendamento" class="modal" style="display:none;">
+        <div class="modal-box">
+            <h3 id="modal-agendamento-titulo">Novo Agendamento</h3>
+            <div id="modal-agendamento-campos"></div>
+            <div class="modal-acoes">
+                <button class="btn btn-secondary" onclick="fecharModalAgendamento()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmarModalAgendamento()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/app.js"></script>
     <script>
             // ==========================================
@@ -464,7 +685,7 @@
         let MATERIAIS_ORDEM = { campo: 'criado_em', direcao: 'desc' };
         let MATERIAIS_EDITANDO = null;
         let PLANO_ATUAL = null;
-        let NO_ATUAL = null;   // tópico ou subtópico selecionado no painel inferior
+        let NO_ATUAL = null;
         let TIPO_CRIACAO = null;
         let CONTEXTO_CRIACAO = null;
         let TIPO_CONTEUDO = null;
@@ -474,6 +695,14 @@
         let NOS_EXPANDIDOS = new Set();
         let svg, g, zoomBehavior, treeLayout, root;
         let i = 0;
+
+        // Agenda
+        let AGENDA_VIEW = 'mensal';
+        let AGENDA_DATA_REF = new Date();   // data de referência (mês ou semana atual)
+        let AGENDAMENTOS = [];
+        let AGENDAMENTO_EDITANDO = null;    // id quando edita
+        let AGENDAMENTO_CONTEXTO = null;    // { tipo: 'geral' } ou { tipo: 'no', noTipo, noId }
+        let AGENDA_TODOS_EVENTOS = [];      // cache local com os eventos
 
         const CORES_DISPONIVEIS = [
             { hex: '#8e44ad', nome: 'Roxo' },
@@ -513,7 +742,6 @@
                 const atualizado = ARVORE.find(p => p.id === PLANO_ATUAL.id);
                 if (atualizado) {
                     PLANO_ATUAL = atualizado;
-                    // Atualiza o nó atual (tópico ou subtópico) se ainda existe
                     if (NO_ATUAL) {
                         const noAtualizado = encontrarNo(NO_ATUAL.tipo, NO_ATUAL.id);
                         if (noAtualizado) {
@@ -550,7 +778,7 @@
         // ==========================================
         function mudarModo(novoModo) {
             MODO = novoModo;
-            ['mapa', 'lista', 'materiais', 'conta'].forEach(m => {
+            ['mapa', 'lista', 'materiais', 'agenda', 'conta'].forEach(m => {
                 const btn = document.getElementById(`btn-modo-${m}`);
                 if (btn) btn.classList.toggle('ativo', m === novoModo);
             });
@@ -564,6 +792,7 @@
             const contaEl = document.getElementById('conta-container');
             const materiaisEl = document.getElementById('materiais-container');
             const controles = document.getElementById('mapa-controles');
+            const agendaEl = document.getElementById('agenda-container');
 
             vazio.style.display = 'none';
             svgEl.style.display = 'none';
@@ -571,12 +800,19 @@
             contaEl.style.display = 'none';
             materiaisEl.style.display = 'none';
             controles.style.display = 'none';
+            agendaEl.style.display = 'none';
 
             if (MODO === 'conta') { contaEl.style.display = 'block'; return; }
 
             if (MODO === 'materiais') {
                 materiaisEl.style.display = 'flex';
                 renderizarTabelaMateriais();
+                return;
+            }
+
+            if (MODO === 'agenda') {
+                agendaEl.style.display = 'flex';
+                carregarAgenda().then(() => renderizarAgenda());
                 return;
             }
 
@@ -592,17 +828,15 @@
         }
 
         // ==========================================
-        // MATERIAIS
+        // MATERIAIS (tabela)
         // ==========================================
         function toggleFiltros() {
             document.getElementById('btn-filtros').classList.toggle('ativo');
             renderizarTabelaMateriais();
         }
-
         function filtrosVisiveis() {
             return document.getElementById('btn-filtros').classList.contains('ativo');
         }
-
         function ordenarPor(campo) {
             if (MATERIAIS_ORDEM.campo === campo) {
                 MATERIAIS_ORDEM.direcao = MATERIAIS_ORDEM.direcao === 'asc' ? 'desc' : 'asc';
@@ -612,7 +846,6 @@
             }
             renderizarTabelaMateriais();
         }
-
         function atualizarSeta(campo) {
             const mapId = { nome: 'nome', materia_nome: 'materia', url_link: 'link', url_arquivo: 'arquivo', criado_em: 'nome' };
             const th = document.getElementById(`th-${mapId[campo] || 'nome'}`);
@@ -621,7 +854,6 @@
             th.classList.add('ordenado');
             th.querySelector('.seta').innerText = MATERIAIS_ORDEM.direcao === 'asc' ? '▲' : '▼';
         }
-
         function materialBateFiltro(m) {
             const f = MATERIAIS_FILTROS;
             if (f.nome && !(m.nome || '').toLowerCase().includes(f.nome.toLowerCase())) return false;
@@ -630,12 +862,10 @@
             if (f.url_arquivo && !(m.url_arquivo || '').toLowerCase().includes(f.url_arquivo.toLowerCase())) return false;
             return true;
         }
-
         function renderizarTabelaMateriais() {
             const tbody = document.getElementById('tbody-materiais');
             if (!tbody) return;
             atualizarSeta(MATERIAIS_ORDEM.campo);
-
             const visiveis = MATERIAIS.filter(materialBateFiltro);
             visiveis.sort((a, b) => {
                 const campo = MATERIAIS_ORDEM.campo;
@@ -647,9 +877,7 @@
                 if (va > vb) return MATERIAIS_ORDEM.direcao === 'asc' ? 1 : -1;
                 return 0;
             });
-
             let html = '';
-
             if (filtrosVisiveis()) {
                 html += `<tr class="linha-filtros ativa">
                     <td><input placeholder="Filtrar nome..." value="${escapeAtributo(MATERIAIS_FILTROS.nome)}" oninput="setFiltro('nome', this.value)"></td>
@@ -659,7 +887,6 @@
                     <td></td>
                 </tr>`;
             }
-
             if (!visiveis.length) {
                 html += `<tr><td colspan="5" class="vazio-tabela">Nenhum material ${MATERIAIS.length ? 'com esse filtro' : 'ainda'}.</td></tr>`;
             } else {
@@ -673,7 +900,6 @@
                     const matCell = m.materia_nome
                         ? `<span class="badge-materia">${escapeHtml(m.materia_nome)}</span>`
                         : '<span style="color:#bdc3c7;">—</span>';
-
                     html += `<tr onclick="abrirMaterial(${m.id})">
                         <td class="col-nome">${escapeHtml(m.nome)}</td>
                         <td>${matCell}</td>
@@ -688,7 +914,6 @@
             }
             tbody.innerHTML = html;
         }
-
         function setFiltro(campo, valor) {
             MATERIAIS_FILTROS[campo] = valor;
             renderizarTabelaMateriais();
@@ -701,21 +926,18 @@
                 }
             }, 0);
         }
-
         function abrirMaterial(id) {
             const m = MATERIAIS.find(x => x.id === id);
             if (!m) return;
             if (m.url_link) window.open(m.url_link, '_blank');
             else if (m.url_arquivo) window.open(m.url_arquivo, '_blank');
         }
-
         function abrirCriacaoMaterial() {
             MATERIAIS_EDITANDO = null;
             document.getElementById('modal-material-titulo').innerText = 'Novo Material';
             renderizarFormMaterial(null);
             document.getElementById('modal-material').style.display = 'flex';
         }
-
         function abrirEdicaoMaterial(id) {
             const m = MATERIAIS.find(x => x.id === id);
             if (!m) return;
@@ -724,7 +946,6 @@
             renderizarFormMaterial(m);
             document.getElementById('modal-material').style.display = 'flex';
         }
-
         function renderizarFormMaterial(m) {
             let campos = `<label>Nome</label><input type="text" id="mat-nome" value="${m ? escapeAtributo(m.nome) : ''}" placeholder="Ex: Livro de Redes Neurais" required>`;
             campos += `<label>Matéria (opcional)</label><select id="mat-materia">${optionsMaterias(m ? m.materia_id : null)}</select>`;
@@ -735,7 +956,6 @@
             }
             document.getElementById('modal-material-campos').innerHTML = campos;
         }
-
         function optionsMaterias(selecionadaId) {
             let html = `<option value="">— Sem matéria —</option>`;
             ARVORE.forEach(plano => {
@@ -746,33 +966,27 @@
             });
             return html;
         }
-
         function fecharModalMaterial() {
             document.getElementById('modal-material').style.display = 'none';
             MATERIAIS_EDITANDO = null;
         }
-
         async function confirmarModalMaterial() {
             const nome = document.getElementById('mat-nome').value.trim();
             const materiaId = document.getElementById('mat-materia').value;
             const link = document.getElementById('mat-link').value.trim();
             const arquivo = document.getElementById('mat-arquivo').files[0];
-
             if (!nome) { mostrarToast('Nome obrigatório', 'error'); return; }
-
             const fd = new FormData();
             fd.append('nome', nome);
             if (materiaId) fd.append('materia_id', materiaId);
             if (link) fd.append('url_link', link);
             if (arquivo) fd.append('arquivo', arquivo);
-
             let resp;
             if (MATERIAIS_EDITANDO) {
                 resp = await apiFetch(`/api/estudos/materiais/${MATERIAIS_EDITANDO}`, { method: 'PATCH', body: fd });
             } else {
                 resp = await apiFetch('/api/estudos/materiais', { method: 'POST', body: fd });
             }
-
             if (resp && resp.ok) {
                 mostrarToast(MATERIAIS_EDITANDO ? 'Material salvo!' : 'Material criado!', 'success');
                 fecharModalMaterial();
@@ -782,7 +996,6 @@
                 mostrarToast(err.detail || 'Erro', 'error');
             }
         }
-
         async function excluirMaterial(id) {
             if (!confirm('Excluir este material? O arquivo também será removido.')) return;
             const resp = await apiFetch(`/api/estudos/materiais/${id}`, { method: 'DELETE' });
@@ -876,11 +1089,9 @@
             if (!plano) return;
             PLANO_ATUAL = plano;
             NO_ATUAL = null;
-
             document.getElementById('bem-vindo-conteudo').style.display = 'block';
             document.getElementById('conteudo-area').style.display = 'none';
-
-            if (MODO === 'conta' || MODO === 'materiais') mudarModo('mapa');
+            if (MODO === 'conta' || MODO === 'materiais' || MODO === 'agenda') mudarModo('mapa');
             else renderizarModoAtual();
         }
 
@@ -889,7 +1100,6 @@
             if (!ref) return;
             NO_ATUAL = { tipo, id, ref };
             renderizarConteudoDoNo();
-
             if (MODO === 'lista') renderizarLista();
             if (MODO === 'mapa') atualizarSelecaoVisual();
         }
@@ -912,7 +1122,6 @@
         function corDaRaiz() {
             return (USUARIO && USUARIO.cor_raiz) || '#8e44ad';
         }
-
         function calcularPorcentagemGeral() {
             let total = 0, concluidos = 0;
             ARVORE.forEach(plano => {
@@ -928,14 +1137,12 @@
             if (total === 0) return 0;
             return Math.round((concluidos / total) * 100);
         }
-
         function statusGeral() {
             const pct = calcularPorcentagemGeral();
             if (pct === 0) return 'adicionado';
             if (pct === 100) return 'concluido';
             return 'em_estudo';
         }
-
         function renderizarMapa() {
             const pct = calcularPorcentagemGeral();
             const hierarquia = {
@@ -991,10 +1198,8 @@
                     }
                 }
             });
-
             atualizarMapa(root);
         }
-
         function colapsarNo(d) {
             if (d.children) {
                 d._children = d.children;
@@ -1002,7 +1207,6 @@
                 d.children = null;
             }
         }
-
         function quebrarTexto(texto, maxCharsPorLinha = 16, maxLinhas = 3) {
             if (!texto) return [''];
             const palavras = texto.split(/\s+/);
@@ -1020,7 +1224,6 @@
             }
             return linhas;
         }
-
         function atualizarMapa(source) {
             const svgEl = document.getElementById('mapa-svg');
             const height = svgEl.clientHeight || 400;
@@ -1028,7 +1231,6 @@
             const treeData = treeLayout(root);
             const nodes = treeData.descendants();
             const links = treeData.links();
-
             nodes.forEach(d => { d.y = d.depth * 220; });
 
             const link = g.selectAll('path.link').data(links, d => d.target.id);
@@ -1040,7 +1242,6 @@
                 .attr('d', () => { const o = { x: source.x, y: source.y }; return diagonal(o, o); }).remove();
 
             const node = g.selectAll('g.node').data(nodes, d => d.id || (d.id = ++i));
-
             const nodeEnter = node.enter().append('g')
                 .attr('class', d => {
                     let cls = `node nivel-${d.data.tipo} status-${d.data.status || 'adicionado'}`;
@@ -1058,80 +1259,63 @@
                 });
 
             nodeEnter.append('circle').attr('r', 1e-6);
-
             nodeEnter.each(function(d) {
                 const linhas = quebrarTexto(d.data.nome, d.data.tipo === 'raiz' ? 18 : 16, 3);
                 const textoEl = d3.select(this).append('text')
                     .attr('class', 'nome-no').attr('text-anchor', 'middle').attr('x', 0);
-                const dyInicial = d.data.tipo === 'raiz' ? '-2.4em' : '-1.6em';
+                const dyInicial = d.data.tipo === 'raiz' ? '-2.4em' : '-4em';
                 linhas.forEach((linha, idx) => {
                     textoEl.append('tspan').attr('x', 0).attr('dy', idx === 0 ? dyInicial : '1.15em').text(linha);
                 });
             });
-
             nodeEnter.append('text')
-                .attr('class', 'porcentagem-no')
-                .attr('text-anchor', 'middle').attr('dy', '.35em')
+                .attr('class', 'porcentagem-no').attr('text-anchor', 'middle').attr('dy', '.35em')
                 .text(d => `${d.data.porcentagem || 0}%`);
 
             const nodeUpdate = node.merge(nodeEnter);
             nodeUpdate.transition().duration(duration).attr('transform', d => `translate(${d.y},${d.x})`);
-
             nodeUpdate.select('circle')
                 .attr('r', d => d.data.tipo === 'raiz' ? 28 : (d.data.tipo === 'plano' ? 18 : (d.data.tipo === 'materia' ? 15 : 13)));
-
             nodeUpdate.attr('class', d => {
                 let cls = `node nivel-${d.data.tipo} status-${d.data.status || 'adicionado'}`;
                 if (d.data.tipo === 'raiz') cls += ' raiz';
                 if (NO_ATUAL && d.data.tipo === NO_ATUAL.tipo && d.data.refId === NO_ATUAL.id) cls += ' selecionado';
                 return cls;
             });
-
             nodeUpdate.filter(d => d.data.tipo === 'raiz')
                 .select('circle').style('fill', corDaRaiz()).style('stroke', corDaRaiz());
-
             nodeUpdate.select('text.porcentagem-no').text(d => `${d.data.porcentagem || 0}%`);
-
             node.exit().transition().duration(duration)
                 .attr('transform', () => `translate(${source.y},${source.x})`).remove();
-
             nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
         }
-
         function diagonal(s, d) {
             const midY = (s.y + d.y) / 2;
             return `M ${s.y} ${s.x} C ${midY} ${s.x}, ${midY} ${d.x}, ${d.y} ${d.x}`;
         }
-
         function clicarNo(d) {
             if (d.data.tipo === 'raiz') return;
-
             if (d.data.tipo === 'subtopico') {
                 NO_ATUAL = { tipo: 'subtopico', id: d.data.refId, ref: encontrarNo('subtopico', d.data.refId) };
                 atualizarSelecaoVisual();
                 renderizarConteudoDoNo();
             } else if (d.data.tipo === 'topico') {
-                // Colapsa/expande E carrega conteúdo do tópico
                 if (d.children) { d._children = d.children; d.children = null; NOS_EXPANDIDOS.delete(d.data.id); }
                 else if (d._children) { d.children = d._children; d._children = null; NOS_EXPANDIDOS.add(d.data.id); }
-
                 NO_ATUAL = { tipo: 'topico', id: d.data.refId, ref: encontrarNo('topico', d.data.refId) };
                 atualizarMapa(d);
                 renderizarConteudoDoNo();
             } else {
-                // Matéria ou plano — só colapsa/expande
                 if (d.children) { d._children = d.children; d.children = null; NOS_EXPANDIDOS.delete(d.data.id); }
                 else if (d._children) { d.children = d._children; d._children = null; NOS_EXPANDIDOS.add(d.data.id); }
                 atualizarMapa(d);
             }
         }
-
         function atualizarSelecaoVisual() {
             d3.selectAll('.node').classed('selecionado', function(d) {
                 return NO_ATUAL && d.data.tipo === NO_ATUAL.tipo && d.data.refId === NO_ATUAL.id;
             });
         }
-
         function zoomIn() { svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.4); }
         function zoomOut() { svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.7); }
         function resetZoom() { svg.transition().duration(300).call(zoomBehavior.transform, d3.zoomIdentity); }
@@ -1149,7 +1333,7 @@
         }
 
         // ==========================================
-        // CONTEÚDO DO NÓ ATUAL (tópico ou subtópico)
+        // CONTEÚDO DO NÓ (tópico ou subtópico)
         // ==========================================
         function renderizarConteudoDoNo() {
             if (!NO_ATUAL || !NO_ATUAL.ref) {
@@ -1157,40 +1341,34 @@
                 document.getElementById('conteudo-area').style.display = 'none';
                 return;
             }
-
             const no = NO_ATUAL.ref;
             document.getElementById('bem-vindo-conteudo').style.display = 'none';
             document.getElementById('conteudo-area').style.display = 'block';
-            document.getElementById('titulo-subtopico').innerText =
-                `📄 ${no.numero || ''} ${no.nome}`.trim();
+            document.getElementById('titulo-subtopico').innerText = `📄 ${no.numero || ''} ${no.nome}`.trim();
 
-            // Monta as abas
             const tabs = [
                 { id: 'material', label: '📖 Material' },
                 { id: 'resumo', label: '📝 Resumo' },
                 { id: 'link', label: '🔗 Links' },
                 { id: 'pdf', label: '📄 PDFs' },
             ];
-            if (NO_ATUAL.tipo === 'topico') {
-                tabs.push({ id: 'subtopicos', label: '📂 Subtópicos' });
-            }
+            if (NO_ATUAL.tipo === 'topico') tabs.push({ id: 'subtopicos', label: '📂 Subtópicos' });
+            tabs.push({ id: 'agenda', label: '📅 Agenda' });
 
             document.getElementById('tabs-container').innerHTML = tabs.map((t, idx) =>
                 `<button class="tab-btn ${idx === 0 ? 'active' : ''}" data-tab="${t.id}" onclick="trocarTab('${t.id}')">${t.label}</button>`
             ).join('');
 
-            // Renderiza o conteúdo de cada aba
             renderizarConteudos(no, NO_ATUAL.tipo);
             if (NO_ATUAL.tipo === 'topico') renderizarTabSubtopicos(no);
+            renderizarTabAgendaNo(no, NO_ATUAL.tipo);
 
-            // Ativa só a primeira aba
             trocarTab('material');
         }
 
         function renderizarConteudos(no, tipo) {
             const tipos = { material: [], resumo: [], link: [], pdf: [] };
             (no.conteudos || []).forEach(c => { if (tipos[c.tipo]) tipos[c.tipo].push(c); });
-
             Object.keys(tipos).forEach(t => {
                 const container = document.getElementById(`tab-${t}`);
                 let html = '';
@@ -1216,7 +1394,6 @@
                 <span style="font-size:0.9rem; color:#7f8c8d;">Subtópicos deste tópico</span>
                 <button class="btn btn-primary" style="padding:8px 14px; font-size:0.85rem;" onclick="abrirCriacao('subtopico', ${topico.id})">+ Novo Subtópico</button>
             </div>`;
-
             if (!topico.subtopicos.length) {
                 html += `<p style="color:#7f8c8d;">Nenhum subtópico ainda.</p>`;
             } else {
@@ -1253,27 +1430,16 @@
         // TABS
         // ==========================================
         function trocarTab(tab) {
-            // Botões
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => { c.classList.remove('active'); c.style.display = 'none'; });
             const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
             if (btn) btn.classList.add('active');
-
-            // Conteúdos — esconde TODOS primeiro
-            document.querySelectorAll('.tab-content').forEach(c => {
-                c.classList.remove('active');
-                c.style.display = 'none';
-            });
-
-            // Mostra só o ativo
             const el = document.getElementById(`tab-${tab}`);
-            if (el) {
-                el.classList.add('active');
-                el.style.display = 'block';
-            }
+            if (el) { el.classList.add('active'); el.style.display = 'block'; }
         }
 
         // ==========================================
-        // DROPDOWNS
+        // DROPDOWNS (contexto)
         // ==========================================
         let dropdownAberto = null;
 
@@ -1344,7 +1510,6 @@
             itemNovoPlano.innerHTML = '➕ Novo plano';
             itemNovoPlano.onclick = (e) => { e.stopPropagation(); fecharDropdown(); criarPlano(); };
             dropdown.appendChild(itemNovoPlano);
-
             dropdown.appendChild(sep());
 
             const itemCor = document.createElement('div');
@@ -1403,13 +1568,11 @@
                 mostrarToast(err.detail || 'Erro', 'error');
             }
         }
-
         function sep() {
             const s = document.createElement('div');
             s.className = 'separador';
             return s;
         }
-
         function posicionarDropdown(dropdown, alvo) {
             const rect = alvo.getBoundingClientRect();
             let top = rect.bottom + 6;
@@ -1420,7 +1583,6 @@
             dropdown.style.top = `${top}px`;
             dropdown.style.left = `${left}px`;
         }
-
         function fecharDropdown() {
             if (dropdownAberto) { dropdownAberto.remove(); dropdownAberto = null; }
         }
@@ -1445,7 +1607,6 @@
                 await carregarArvore();
             } else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
         }
-
         function deletarItem(tipo, id) { return excluirItem(tipo, id); }
 
         // ==========================================
@@ -1456,13 +1617,11 @@
         function abrirCriacao(tipo, paiId) {
             TIPO_CRIACAO = tipo;
             CONTEXTO_CRIACAO = paiId;
-
             const titulos = {
                 plano: 'Novo Plano de Estudos', materia: 'Nova Matéria',
                 topico: 'Novo Tópico', subtopico: 'Novo Subtópico'
             };
             document.getElementById('modal-titulo').innerText = titulos[tipo];
-
             let campos = '';
             if (tipo === 'plano') {
                 campos = `<label>Nome</label><input type="text" id="campo-nome" placeholder="Ex: Engenharia Elétrica" required>
@@ -1474,12 +1633,10 @@
                           <label>Nome</label><input type="text" id="campo-nome" placeholder="Nome" required>`;
             }
             campos += `<label>Categoria</label><select id="campo-categoria">${optionsCategorias('')}</select>`;
-
             document.getElementById('modal-campos').innerHTML = campos;
             document.getElementById('campo-categoria').addEventListener('change', onCategoriaChange);
             document.getElementById('modal').style.display = 'flex';
         }
-
         function optionsCategorias(selecionadoId) {
             let html = `<option value="">— Sem categoria —</option>`;
             CATEGORIAS.forEach(c => {
@@ -1489,7 +1646,6 @@
             html += `<option value="__nova__">➕ Criar nova categoria</option>`;
             return html;
         }
-
         function onCategoriaChange(e) {
             if (e.target.value === '__nova__') {
                 e.target.value = '';
@@ -1497,37 +1653,24 @@
                 abrirModalCategorias();
             }
         }
-
         function fecharModal() {
             document.getElementById('modal').style.display = 'none';
             TIPO_CRIACAO = null;
             CONTEXTO_CRIACAO = null;
         }
-
         async function confirmarModal() {
             const nome = document.getElementById('campo-nome')?.value.trim();
             const descricao = document.getElementById('campo-descricao')?.value.trim();
             const numero = document.getElementById('campo-numero')?.value.trim();
             const catId = document.getElementById('campo-categoria')?.value;
             const categoria_id = catId && catId !== '__nova__' ? parseInt(catId) : null;
-
             if (!nome) { mostrarToast('Preencha o nome', 'error'); return; }
             const eraNovoPlano = TIPO_CRIACAO === 'plano';
-
             let url, body;
-            if (TIPO_CRIACAO === 'plano') {
-                url = '/api/estudos/planos';
-                body = { nome, descricao: descricao || null, categoria_id };
-            } else if (TIPO_CRIACAO === 'materia') {
-                url = `/api/estudos/planos/${CONTEXTO_CRIACAO}/materias`;
-                body = { nome, categoria_id };
-            } else if (TIPO_CRIACAO === 'topico') {
-                url = `/api/estudos/materias/${CONTEXTO_CRIACAO}/topicos`;
-                body = { nome, numero: numero || null, categoria_id };
-            } else if (TIPO_CRIACAO === 'subtopico') {
-                url = `/api/estudos/topicos/${CONTEXTO_CRIACAO}/subtopicos`;
-                body = { nome, numero: numero || null, categoria_id };
-            }
+            if (TIPO_CRIACAO === 'plano') { url = '/api/estudos/planos'; body = { nome, descricao: descricao || null, categoria_id }; }
+            else if (TIPO_CRIACAO === 'materia') { url = `/api/estudos/planos/${CONTEXTO_CRIACAO}/materias`; body = { nome, categoria_id }; }
+            else if (TIPO_CRIACAO === 'topico') { url = `/api/estudos/materias/${CONTEXTO_CRIACAO}/topicos`; body = { nome, numero: numero || null, categoria_id }; }
+            else if (TIPO_CRIACAO === 'subtopico') { url = `/api/estudos/topicos/${CONTEXTO_CRIACAO}/subtopicos`; body = { nome, numero: numero || null, categoria_id }; }
 
             const resp = await apiFetch(url, { method: 'POST', body: JSON.stringify(body) });
 
@@ -1541,7 +1684,6 @@
                     selecionarPlano(criado.id);
                 }
                 if (TIPO_CRIACAO === 'subtopico' && NO_ATUAL && NO_ATUAL.tipo === 'topico') {
-                    // Re-renderiza a aba Subtópicos com o novo
                     const topAtual = encontrarNo('topico', NO_ATUAL.id);
                     if (topAtual) { NO_ATUAL.ref = topAtual; renderizarTabSubtopicos(topAtual); }
                 }
@@ -1557,7 +1699,6 @@
             EDITANDO = { recurso, id };
             const tipo = recurso === 'planos' ? 'plano' : (recurso === 'materias' ? 'matéria' : (recurso === 'topicos' ? 'tópico' : 'subtópico'));
             document.getElementById('modal-editar-titulo').innerText = `Editar ${tipo}`;
-
             let campos = '';
             if (recurso === 'planos') {
                 campos = `<label>Nome</label><input type="text" id="edit-nome" value="${escapeAtributo(item.nome)}">
@@ -1570,17 +1711,14 @@
             }
             const catId = item.categoria ? item.categoria.id : '';
             campos += `<label>Categoria</label><select id="edit-categoria">${optionsCategorias(catId)}</select>`;
-
             document.getElementById('modal-editar-campos').innerHTML = campos;
             document.getElementById('edit-categoria').addEventListener('change', onCategoriaChange);
             document.getElementById('modal-editar').style.display = 'flex';
         }
-
         function fecharModalEditar() {
             document.getElementById('modal-editar').style.display = 'none';
             EDITANDO = null;
         }
-
         async function confirmarModalEditar() {
             if (!EDITANDO) return;
             const { recurso, id } = EDITANDO;
@@ -1589,13 +1727,10 @@
             const descricao = document.getElementById('edit-descricao')?.value.trim();
             const catId = document.getElementById('edit-categoria')?.value;
             const categoria_id = catId ? parseInt(catId) : null;
-
             if (!nome) { mostrarToast('Nome obrigatório', 'error'); return; }
-
             const body = { nome, categoria_id };
             if (numero !== undefined) body.numero = numero || null;
             if (descricao !== undefined) body.descricao = descricao || null;
-
             const resp = await apiFetch(`/api/estudos/${recurso}/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
             if (resp && resp.ok) {
                 mostrarToast('Salvo!', 'success');
@@ -1603,7 +1738,6 @@
                 await carregarArvore();
             } else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
         }
-
         function buscarItem(recurso, id) {
             if (recurso === 'planos') return ARVORE.find(p => p.id === id);
             for (const p of ARVORE)
@@ -1634,7 +1768,6 @@
                 </div>
             `).join('') || '<p style="color:#7f8c8d; font-size:0.9rem;">Nenhuma categoria ainda.</p>';
         }
-
         function renderizarListaCategoriasModal() {
             const container = document.getElementById('modal-categorias-lista');
             if (!container) return;
@@ -1647,24 +1780,15 @@
                 </div>
             `).join('') || '<p style="color:#7f8c8d; font-size:0.9rem;">Nenhuma categoria ainda.</p>';
         }
-
         async function salvarCategoriaInline(id, novoNome) {
             const nome = (novoNome || '').trim();
             if (!nome) { await carregarCategorias(); return; }
             const atual = CATEGORIAS.find(c => c.id === id);
             if (atual && atual.nome === nome) return;
             const resp = await apiFetch(`/api/estudos/categorias/${id}`, { method: 'PATCH', body: JSON.stringify({ nome }) });
-            if (resp && resp.ok) {
-                mostrarToast('Categoria atualizada', 'success');
-                await carregarCategorias();
-                await carregarArvore();
-            } else if (resp) {
-                const err = await resp.json();
-                mostrarToast(err.detail || 'Erro', 'error');
-                await carregarCategorias();
-            }
+            if (resp && resp.ok) { mostrarToast('Categoria atualizada', 'success'); await carregarCategorias(); await carregarArvore(); }
+            else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); await carregarCategorias(); }
         }
-
         async function adicionarCategoriaVazia() {
             const resp = await apiFetch('/api/estudos/categorias', { method: 'POST', body: JSON.stringify({ nome: 'Nova categoria' }) });
             if (resp && resp.ok) {
@@ -1675,22 +1799,16 @@
                 }, 100);
             } else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
         }
-
         async function excluirCategoria(id) {
             if (!confirm('Excluir esta categoria? Os itens que usam ela vão ficar sem categoria.')) return;
             const resp = await apiFetch(`/api/estudos/categorias/${id}`, { method: 'DELETE' });
-            if (resp && resp.ok) {
-                mostrarToast('Categoria excluída', 'success');
-                await carregarCategorias();
-                await carregarArvore();
-            } else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
+            if (resp && resp.ok) { mostrarToast('Categoria excluída', 'success'); await carregarCategorias(); await carregarArvore(); }
+            else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
         }
-
         function abrirModalCategorias() {
             renderizarListaCategoriasModal();
             document.getElementById('modal-categorias').style.display = 'flex';
         }
-
         function fecharModalCategorias() {
             document.getElementById('modal-categorias').style.display = 'none';
             renderizarListaCategorias();
@@ -1715,7 +1833,6 @@
             if (!NO_ATUAL) { mostrarToast('Selecione um tópico ou subtópico', 'error'); return; }
             TIPO_CONTEUDO = tipo;
             document.getElementById('modal-conteudo-titulo').innerText = `Adicionar ${rotuloTipo(tipo)}`;
-
             let campos = `<label>Título</label><input type="text" id="conteudo-titulo" placeholder="Opcional">`;
             if (tipo === 'link') {
                 campos += `<label>URL</label><input type="url" id="conteudo-link" placeholder="https://...">`;
@@ -1726,21 +1843,17 @@
             document.getElementById('modal-conteudo-campos').innerHTML = campos;
             document.getElementById('modal-conteudo').style.display = 'flex';
         }
-
         function fecharModalConteudo() {
             document.getElementById('modal-conteudo').style.display = 'none';
             TIPO_CONTEUDO = null;
         }
-
         async function confirmarModalConteudo() {
             const titulo = document.getElementById('conteudo-titulo')?.value.trim();
             const texto = document.getElementById('conteudo-texto')?.value.trim();
             const link = document.getElementById('conteudo-link')?.value.trim();
             const arquivo = document.getElementById('conteudo-arquivo')?.files[0];
-
             if (TIPO_CONTEUDO === 'link' && !link) { mostrarToast('Informe o link', 'error'); return; }
             if (!texto && !arquivo && !link) { mostrarToast('Preencha texto ou arquivo', 'error'); return; }
-
             const formData = new FormData();
             formData.append('tipo', TIPO_CONTEUDO);
             if (NO_ATUAL.tipo === 'topico') formData.append('topico_id', NO_ATUAL.id);
@@ -1749,13 +1862,450 @@
             if (texto) formData.append('texto', texto);
             if (link) formData.append('url_link', link);
             if (arquivo) formData.append('arquivo', arquivo);
-
             const resp = await apiFetch('/api/estudos/conteudos', { method: 'POST', body: formData });
+            if (resp && resp.ok) { mostrarToast('Conteúdo adicionado!', 'success'); fecharModalConteudo(); await carregarArvore(); }
+            else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
+        }
+
+        // ==========================================
+        // AGENDA
+        // ==========================================
+
+        async function carregarAgenda() {
+            const resp = await apiFetch('/api/estudos/agenda');
+            if (!resp) return;
+            AGENDAMENTOS = await resp.json();
+        }
+
+        function mudarViewAgenda(view) {
+            AGENDA_VIEW = view;
+            document.querySelectorAll('.agenda-views button').forEach(b => {
+                b.classList.toggle('ativo', b.dataset.view === view);
+            });
+            // O botão "Hoje" e as setas ficam escondidos na view lista
+            document.getElementById('agenda-nav').style.display = view === 'lista' ? 'none' : 'flex';
+            renderizarAgenda();
+        }
+
+        function agendaAnterior() {
+            if (AGENDA_VIEW === 'mensal') {
+                AGENDA_DATA_REF = new Date(AGENDA_DATA_REF.getFullYear(), AGENDA_DATA_REF.getMonth() - 1, 1);
+            } else if (AGENDA_VIEW === 'semanal') {
+                const d = new Date(AGENDA_DATA_REF);
+                d.setDate(d.getDate() - 7);
+                AGENDA_DATA_REF = d;
+            }
+            renderizarAgenda();
+        }
+        function agendaProximo() {
+            if (AGENDA_VIEW === 'mensal') {
+                AGENDA_DATA_REF = new Date(AGENDA_DATA_REF.getFullYear(), AGENDA_DATA_REF.getMonth() + 1, 1);
+            } else if (AGENDA_VIEW === 'semanal') {
+                const d = new Date(AGENDA_DATA_REF);
+                d.setDate(d.getDate() + 7);
+                AGENDA_DATA_REF = d;
+            }
+            renderizarAgenda();
+        }
+        function agendaHoje() {
+            AGENDA_DATA_REF = new Date();
+            renderizarAgenda();
+        }
+
+        function renderizarAgenda() {
+            const body = document.getElementById('agenda-body');
+            const titulo = document.getElementById('agenda-titulo-periodo');
+
+            if (AGENDA_VIEW === 'mensal') {
+                titulo.innerText = AGENDA_DATA_REF.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                body.innerHTML = construirAgendaMensal();
+            } else if (AGENDA_VIEW === 'semanal') {
+                titulo.innerText = construirTituloSemana();
+                body.innerHTML = construirAgendaSemanal();
+            } else {
+                titulo.innerText = 'Próximos eventos';
+                body.innerHTML = construirAgendaLista();
+            }
+        }
+
+        function construirTituloSemana() {
+            const { inicio, fim } = calcularRangeSemana(AGENDA_DATA_REF);
+            return `${inicio.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} – ${fim.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
+        }
+
+        function calcularRangeSemana(data) {
+            const d = new Date(data);
+            const diaSemana = d.getDay(); // 0=dom
+            const inicio = new Date(d);
+            inicio.setDate(d.getDate() - diaSemana);
+            inicio.setHours(0, 0, 0, 0);
+            const fim = new Date(inicio);
+            fim.setDate(inicio.getDate() + 6);
+            fim.setHours(23, 59, 59, 999);
+            return { inicio, fim };
+        }
+
+        function agendamentosNoDia(data) {
+            const inicioDia = new Date(data); inicioDia.setHours(0, 0, 0, 0);
+            const fimDia = new Date(data); fimDia.setHours(23, 59, 59, 999);
+            return AGENDAMENTOS.filter(a => {
+                const dt = new Date(a.data_inicio);
+                return dt >= inicioDia && dt <= fimDia;
+            }).sort((a, b) => new Date(a.data_inicio) - new Date(b.data_inicio));
+        }
+
+        function statusDoAgendamento(a) {
+            // Procura o status do nó na árvore
+            const no = a.topico_id ? encontrarNo('topico', a.topico_id) : encontrarNo('subtopico', a.subtopico_id);
+            return no ? no.status : 'adicionado';
+        }
+
+        // ---- Mensal ----
+        function construirAgendaMensal() {
+            const ano = AGENDA_DATA_REF.getFullYear();
+            const mes = AGENDA_DATA_REF.getMonth();
+            const primeiro = new Date(ano, mes, 1);
+            const diaSemanaInicio = primeiro.getDay();
+            const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+            const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+
+            let html = '<div class="grade-mensal">';
+            // Cabeçalho
+            ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].forEach(d => {
+                html += `<div class="dia-cabecalho">${d}</div>`;
+            });
+            // Células
+            const totalCelulas = Math.ceil((diaSemanaInicio + diasNoMes) / 7) * 7;
+            for (let i = 0; i < totalCelulas; i++) {
+                const diaNumero = i - diaSemanaInicio + 1;
+                const data = new Date(ano, mes, diaNumero);
+                const foraDoMes = diaNumero < 1 || diaNumero > diasNoMes;
+                const isHoje = !foraDoMes && data.getTime() === hoje.getTime();
+
+                const eventos = foraDoMes ? [] : agendamentosNoDia(data);
+                const visiveis = eventos.slice(0, 3);
+
+                let cls = 'dia-celula';
+                if (foraDoMes) cls += ' fora-do-mes';
+                if (isHoje) cls += ' hoje';
+
+                html += `<div class="${cls}">`;
+                html += `<div class="dia-numero">${data.getDate()}</div>`;
+                visiveis.forEach(ev => {
+                    const status = statusDoAgendamento(ev);
+                    const hora = new Date(ev.data_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    html += `<div class="evento-mini status-${status}" onclick="irParaAgendamento(${ev.id})" title="${escapeAtributo(ev.node_nome)}">${hora} ${escapeHtml(ev.node_nome)}</div>`;
+                });
+                if (eventos.length > 3) {
+                    html += `<div class="mais-eventos" onclick="irParaListaDoDia('${data.toISOString()}')">+${eventos.length - 3} mais</div>`;
+                }
+                html += `</div>`;
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function irParaListaDoDia(iso) {
+            mudarViewAgenda('lista');
+            // Filtra só o dia
+            const data = new Date(iso);
+            const nomeDia = data.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+            setTimeout(() => {
+                mostrarToast(`Eventos de ${nomeDia}`, 'info');
+            }, 100);
+        }
+
+        // ---- Semanal ----
+        function construirAgendaSemanal() {
+            const { inicio } = calcularRangeSemana(AGENDA_DATA_REF);
+            const HORA_INI = 6;
+            const HORA_FIM = 23;
+            const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+
+            let html = '<div class="grade-semanal">';
+            // Cabeçalho: célula vazia + 7 dias
+            html += `<div class="hora-cabecalho"></div>`;
+            for (let d = 0; d < 7; d++) {
+                const dia = new Date(inicio); dia.setDate(inicio.getDate() + d);
+                const isHoje = dia.getTime() === hoje.getTime();
+                const diaLabel = dia.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' });
+                html += `<div class="dia-cabecalho-sem" style="${isHoje ? 'background:#1abc9c;' : ''}">${diaLabel}</div>`;
+            }
+            // Linhas de hora
+            for (let h = HORA_INI; h <= HORA_FIM; h++) {
+                html += `<div class="hora-label">${String(h).padStart(2, '0')}:00</div>`;
+                for (let d = 0; d < 7; d++) {
+                    const dia = new Date(inicio); dia.setDate(inicio.getDate() + d);
+                    const isHoje = dia.getTime() === hoje.getTime();
+                    const eventosNessaHora = agendamentosNoDia(dia).filter(a => {
+                        const dt = new Date(a.data_inicio);
+                        return dt.getHours() === h;
+                    });
+                    html += `<div class="hora-celula ${isHoje ? 'hoje' : ''}">`;
+                    eventosNessaHora.forEach(ev => {
+                        const status = statusDoAgendamento(ev);
+                        const dtIni = new Date(ev.data_inicio);
+                        const dtFim = new Date(ev.data_fim);
+                        const duracaoMin = (dtFim - dtIni) / 60000;
+                        // Altura: 48px por hora => 48/60 por minuto
+                        const topPx = (dtIni.getMinutes() / 60) * 48;
+                        const altPx = (duracaoMin / 60) * 48 - 2;
+                        const hora = dtIni.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        html += `<div class="evento-semanal status-${status}" style="top:${topPx}px; height:${altPx}px;" onclick="irParaAgendamento(${ev.id})" title="${escapeAtributo(ev.node_nome)}">
+                            <strong>${hora}</strong><br>${escapeHtml(ev.node_nome)}
+                        </div>`;
+                    });
+                    html += `</div>`;
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+
+        // ---- Lista ----
+        function construirAgendaLista() {
+            const agora = new Date();
+            const futuros = AGENDAMENTOS.filter(a => new Date(a.data_fim) >= agora);
+            if (!futuros.length) {
+                return '<div class="agenda-vazia">📭 Nenhum evento futuro.</div>';
+            }
+            futuros.sort((a, b) => new Date(a.data_inicio) - new Date(b.data_inicio));
+
+            let html = '<div class="lista-eventos">';
+            futuros.forEach(ev => {
+                const status = statusDoAgendamento(ev);
+                const dtIni = new Date(ev.data_inicio);
+                const dtFim = new Date(ev.data_fim);
+                const dataFormatada = dtIni.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+                const horaIni = dtIni.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const horaFim = dtFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const caminhoStr = ev.caminho ? [
+                    ev.caminho.plano_nome, ev.caminho.materia_nome, ev.caminho.topico_nome
+                ].filter(Boolean).join(' › ') : '';
+
+                html += `<div class="evento-card status-${status}">
+                    <div class="info">
+                        <div class="data">${dataFormatada} · ${horaIni}–${horaFim}</div>
+                        <div class="node-nome">${escapeHtml(ev.node_nome)}</div>
+                        ${caminhoStr ? `<div class="caminho">${escapeHtml(caminhoStr)}</div>` : ''}
+                    </div>
+                    <div class="acoes">
+                        <button onclick="editarAgendamento(${ev.id})" title="Editar">✏️</button>
+                        <button class="excluir" onclick="excluirAgendamento(${ev.id})" title="Excluir">✕</button>
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function irParaAgendamento(agendamentoId) {
+            const ev = AGENDAMENTOS.find(a => a.id === agendamentoId);
+            if (!ev) return;
+
+            // Abre o plano no modo mapa
+            const planoId = ev.caminho?.plano_id;
+            if (planoId) {
+                // Garante que os ancestrais estejam expandidos
+                NOS_EXPANDIDOS.add(`plano-${planoId}`);
+                if (ev.caminho.materia_id) NOS_EXPANDIDOS.add(`mat-${ev.caminho.materia_id}`);
+                if (ev.caminho.topico_id) NOS_EXPANDIDOS.add(`top-${ev.caminho.topico_id}`);
+                if (ev.topico_id) NOS_EXPANDIDOS.add(`top-${ev.topico_id}`);
+            }
+
+            mudarModo('mapa');
+
+            // Seleciona o nó
+            if (ev.topico_id) selecionarNo('topico', ev.topico_id);
+            else if (ev.subtopico_id) selecionarNo('subtopico', ev.subtopico_id);
+
+            // Rola pra parte inferior
+            setTimeout(() => {
+                document.getElementById('conteudo-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 200);
+        }
+
+        // ---- Aba Agenda dentro do nó ----
+        function renderizarTabAgendaNo(no, tipo) {
+            const container = document.getElementById('tab-agenda');
+            const agendamentos = no.horarios || [];
+
+            let html = '';
+            if (!agendamentos.length) {
+                html = `<p style="color:#7f8c8d;">Nenhum agendamento ainda.</p>`;
+            } else {
+                agendamentos.forEach(ev => {
+                    const dtIni = new Date(ev.data_inicio);
+                    const dtFim = new Date(ev.data_fim);
+                    const status = statusDoAgendamento(ev);
+                    const dataFormatada = dtIni.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+                    const horaIni = dtIni.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    const horaFim = dtFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+                    html += `<div class="agendamento-linha status-${status}">
+                        <div class="info">
+                            <strong>${dataFormatada}</strong> · ${horaIni} às ${horaFim}
+                        </div>
+                        <button onclick="editarAgendamento(${ev.id})" title="Editar">✏️</button>
+                        <button class="excluir" onclick="excluirAgendamento(${ev.id})" title="Excluir">✕</button>
+                    </div>`;
+                });
+            }
+            html += `<button class="tab-add-btn" onclick="abrirCriacaoAgendamentoDoNo()">+ Novo agendamento</button>`;
+            container.innerHTML = html;
+        }
+
+        // ---- Modal de agendamento ----
+        function abrirCriacaoAgendamento() {
+            // Vindo da Agenda geral — precisa escolher o nó
+            AGENDAMENTO_EDITANDO = null;
+            AGENDAMENTO_CONTEXTO = { tipo: 'geral' };
+            document.getElementById('modal-agendamento-titulo').innerText = 'Novo Agendamento';
+            renderizarFormAgendamento(null, 'geral');
+            document.getElementById('modal-agendamento').style.display = 'flex';
+        }
+
+        function abrirCriacaoAgendamentoDoNo() {
+            if (!NO_ATUAL) return;
+            AGENDAMENTO_EDITANDO = null;
+            AGENDAMENTO_CONTEXTO = { tipo: 'no', noTipo: NO_ATUAL.tipo, noId: NO_ATUAL.id };
+            document.getElementById('modal-agendamento-titulo').innerText = 'Novo Agendamento';
+            renderizarFormAgendamento(null, 'no');
+            document.getElementById('modal-agendamento').style.display = 'flex';
+        }
+
+        function editarAgendamento(id) {
+            const ev = AGENDAMENTOS.find(a => a.id === id);
+            if (!ev) return;
+            AGENDAMENTO_EDITANDO = id;
+            AGENDAMENTO_CONTEXTO = { tipo: 'geral' };
+            document.getElementById('modal-agendamento-titulo').innerText = 'Editar Agendamento';
+            renderizarFormAgendamento(ev, 'geral');
+            document.getElementById('modal-agendamento').style.display = 'flex';
+        }
+
+        function renderizarFormAgendamento(ev, contexto) {
+            let campos = '';
+
+            if (contexto === 'geral') {
+                // Dropdown de nó
+                let opts = '<option value="">— Escolha um tópico ou subtópico —</option>';
+                ARVORE.forEach(plano => {
+                    plano.materias.forEach(mat => {
+                        mat.topicos.forEach(top => {
+                            const nomeTop = `${top.numero || ''} ${top.nome}`.trim();
+                            opts += `<optgroup label="${escapeAtributo(plano.nome)} › ${escapeAtributo(mat.nome)}">`;
+                            const selTop = ev && ev.topico_id === top.id ? 'selected' : '';
+                            opts += `<option value="top:${top.id}" ${selTop}>🔖 ${escapeHtml(nomeTop)}</option>`;
+                            top.subtopicos.forEach(sub => {
+                                const nomeSub = `${sub.numero || ''} ${sub.nome}`.trim();
+                                const selSub = ev && ev.subtopico_id === sub.id ? 'selected' : '';
+                                opts += `<option value="sub:${sub.id}" ${selSub}>  📄 ${escapeHtml(nomeSub)}</option>`;
+                            });
+                            opts += `</optgroup>`;
+                        });
+                    });
+                });
+                campos += `<label>Estudar</label><select id="ag-no">${opts}</select>`;
+            } else {
+                // Já vem com o nó atual
+                const nomeNo = `${NO_ATUAL.ref.numero || ''} ${NO_ATUAL.ref.nome}`.trim();
+                campos += `<label>Estudando</label><input type="text" value="${escapeAtributo(nomeNo)}" disabled>`;
+            }
+
+            // Data
+            const hojeISO = new Date().toISOString().slice(0, 10);
+            const dataVal = ev ? new Date(ev.data_inicio).toISOString().slice(0, 10) : hojeISO;
+            campos += `<label>Data</label><input type="date" id="ag-data" value="${dataVal}">`;
+
+            // Hora início/fim
+            const horaIniVal = ev ? new Date(ev.data_inicio).toTimeString().slice(0, 5) : '14:00';
+            const horaFimVal = ev ? new Date(ev.data_fim).toTimeString().slice(0, 5) : '15:00';
+            campos += `<label>Hora de início</label><input type="time" id="ag-inicio" value="${horaIniVal}">`;
+            campos += `<label>Hora de fim</label><input type="time" id="ag-fim" value="${horaFimVal}">`;
+
+            document.getElementById('modal-agendamento-campos').innerHTML = campos;
+        }
+
+        function fecharModalAgendamento() {
+            document.getElementById('modal-agendamento').style.display = 'none';
+            AGENDAMENTO_EDITANDO = null;
+            AGENDAMENTO_CONTEXTO = null;
+        }
+
+        async function confirmarModalAgendamento() {
+            const contexto = AGENDAMENTO_CONTEXTO;
+            let topico_id = null, subtopico_id = null;
+
+            if (contexto.tipo === 'geral') {
+                const noVal = document.getElementById('ag-no').value;
+                if (!noVal) { mostrarToast('Escolha um nó', 'error'); return; }
+                const [tipo, idStr] = noVal.split(':');
+                if (tipo === 'top') topico_id = parseInt(idStr);
+                else subtopico_id = parseInt(idStr);
+            } else {
+                if (contexto.noTipo === 'topico') topico_id = contexto.noId;
+                else subtopico_id = contexto.noId;
+            }
+
+            const data = document.getElementById('ag-data').value;
+            const horaIni = document.getElementById('ag-inicio').value;
+            const horaFim = document.getElementById('ag-fim').value;
+
+            if (!data || !horaIni || !horaFim) { mostrarToast('Preencha todos os campos', 'error'); return; }
+            if (horaFim <= horaIni) { mostrarToast('Hora de fim deve ser depois do início', 'error'); return; }
+
+            const data_inicio = `${data}T${horaIni}:00`;
+            const data_fim = `${data}T${horaFim}:00`;
+
+            const body = { data_inicio, data_fim };
+            if (AGENDAMENTO_EDITANDO) {
+                // Edição: só data/hora
+                const resp = await apiFetch(`/api/estudos/agendamentos/${AGENDAMENTO_EDITANDO}`, {
+                    method: 'PATCH', body: JSON.stringify(body)
+                });
+                if (resp && resp.ok) {
+                    mostrarToast('Agendamento salvo!', 'success');
+                    fecharModalAgendamento();
+                    await carregarArvore();
+                    await carregarAgenda();
+                    if (MODO === 'agenda') renderizarAgenda();
+                } else if (resp) {
+                    const err = await resp.json();
+                    mostrarToast(err.detail || 'Erro', 'error');
+                }
+            } else {
+                // Criação
+                if (topico_id) body.topico_id = topico_id;
+                else body.subtopico_id = subtopico_id;
+                const resp = await apiFetch('/api/estudos/agendamentos', {
+                    method: 'POST', body: JSON.stringify(body)
+                });
+                if (resp && resp.ok) {
+                    mostrarToast('Agendamento criado!', 'success');
+                    fecharModalAgendamento();
+                    await carregarArvore();
+                    await carregarAgenda();
+                    if (MODO === 'agenda') renderizarAgenda();
+                } else if (resp) {
+                    const err = await resp.json();
+                    mostrarToast(err.detail || 'Erro', 'error');
+                }
+            }
+        }
+
+        async function excluirAgendamento(id) {
+            if (!confirm('Excluir este agendamento?')) return;
+            const resp = await apiFetch(`/api/estudos/agendamentos/${id}`, { method: 'DELETE' });
             if (resp && resp.ok) {
-                mostrarToast('Conteúdo adicionado!', 'success');
-                fecharModalConteudo();
+                mostrarToast('Agendamento excluído', 'success');
                 await carregarArvore();
-            } else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
+                await carregarAgenda();
+                if (MODO === 'agenda') renderizarAgenda();
+            } else if (resp) {
+                const err = await resp.json();
+                mostrarToast(err.detail || 'Erro', 'error');
+            }
         }
 
         // ==========================================
