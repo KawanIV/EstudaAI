@@ -95,3 +95,15 @@ class MaterialUpdate(BaseModel):
     nome: Optional[str] = None
     materia_id: Optional[int] = None
     url_link: Optional[str] = None
+
+# ============ AGENDA ============
+class AgendamentoCreate(BaseModel):
+    topico_id: Optional[int] = None
+    subtopico_id: Optional[int] = None
+    data_inicio: str  # ISO 8601 (ex: "2026-09-22T14:00:00")
+    data_fim: str     # ISO 8601
+
+
+class AgendamentoUpdate(BaseModel):
+    data_inicio: str
+    data_fim: str

@@ -197,12 +197,14 @@ def arvore_completa(usuario=Depends(get_usuario_atual), db: Session = Depends(ge
                         "categoria": serializar_categoria(s.categoria),
                         "status": sub_status, "porcentagem": sub_pct,
                         "conteudos": [serializar_conteudo(c) for c in s.conteudos],
+                        "horarios": [_serializar_horario(h, db) for h in s.horarios], 
                     })
                 topicos_list.append({
                     "id": t.id, "numero": t.numero, "nome": t.nome,
                     "categoria": serializar_categoria(t.categoria),
                     "status": top_status, "porcentagem": top_pct,
                     "conteudos": [serializar_conteudo(c) for c in t.conteudos],   # 👈 NOVA LINHA
+                    "horarios": [_serializar_horario(h, db) for h in t.horarios], 
                     "subtopicos": subs_list,
                 })
             materias_list.append({
@@ -728,3 +730,280 @@ def deletar_material(material_id: int, usuario=Depends(get_usuario_atual), db: S
     db.delete(material)
     db.commit()
     return {"mensagem": "Material deletado"}
+
+# ==========================================================
+# AGENDA
+# ==========================================================
+
+from datetime import datetime
+
+
+def _parse_datetime(s: str) -> datetime:
+    """Aceita ISO 8601 com ou sem timezone. Sempre retorna aware em UTC."""
+    from datetime import timezone
+    s = s.strip().replace('Z', '+00:00')
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Data inválida: {s}")
+    # Se veio naive, assume UTC
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+def _aware(dt: datetime) -> datetime:
+    """Garante que o datetime seja aware em UTC."""
+    from datetime import timezone
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+def _serializar_horario(h: models.HorarioEstudo, db: Session) -> dict:
+    """Retorna dados do horário + info do nó pai pra exibir na agenda."""
+    # Descobre o nó pai e o caminho (plano > matéria > [tópico] > [subtópico])
+    node_nome = ""
+    node_tipo = ""
+    caminho = {}
+
+    if h.topico_id:
+        top = db.query(models.Topico).filter(models.Topico.id == h.topico_id).first()
+        if top:
+            node_nome = f"{top.numero or ''} {top.nome}".strip()
+            node_tipo = "topico"
+            mat = db.query(models.Materia).filter(models.Materia.id == top.materia_id).first()
+            if mat:
+                plano = db.query(models.PlanoEstudo).filter(models.PlanoEstudo.id == mat.plano_id).first()
+                caminho = {
+                    "plano_id": plano.id if plano else None,
+                    "plano_nome": plano.nome if plano else None,
+                    "materia_id": mat.id,
+                    "materia_nome": mat.nome,
+                }
+    elif h.subtopico_id:
+        sub = db.query(models.Subtopico).filter(models.Subtopico.id == h.subtopico_id).first()
+        if sub:
+            node_nome = f"{sub.numero or ''} {sub.nome}".strip()
+            node_tipo = "subtopico"
+            top = db.query(models.Topico).filter(models.Topico.id == sub.topico_id).first()
+            if top:
+                mat = db.query(models.Materia).filter(models.Materia.id == top.materia_id).first()
+                if mat:
+                    plano = db.query(models.PlanoEstudo).filter(models.PlanoEstudo.id == mat.plano_id).first()
+                    caminho = {
+                        "plano_id": plano.id if plano else None,
+                        "plano_nome": plano.nome if plano else None,
+                        "materia_id": mat.id,
+                        "materia_nome": mat.nome,
+                        "topico_id": top.id,
+                        "topico_nome": f"{top.numero or ''} {top.nome}".strip(),
+                    }
+
+    return {
+        "id": h.id,
+        "topico_id": h.topico_id,
+        "subtopico_id": h.subtopico_id,
+        "data_inicio": h.data_inicio.isoformat(),
+        "data_fim": h.data_fim.isoformat(),
+        "node_nome": node_nome,
+        "node_tipo": node_tipo,
+        "caminho": caminho,
+    }
+
+
+def _validar_horario(data_inicio: datetime, data_fim: datetime):
+    if data_fim <= data_inicio:
+        raise HTTPException(status_code=400, detail="Hora de fim deve ser depois da hora de início")
+
+
+def _verificar_sobreposicao(
+    db: Session, usuario_id: int, data_inicio: datetime, data_fim: datetime,
+    ignorar_id: int = None
+):
+    """Verifica se já existe agendamento conflitante do mesmo usuário."""
+    # Busca TODOS os horários
+    todos = db.query(models.HorarioEstudo).all()
+
+    for h in todos:
+        if ignorar_id and h.id == ignorar_id:
+            continue
+
+        # Descobre o dono
+        dono_id = None
+        if h.topico_id:
+            dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
+                models.Topico.id == h.topico_id
+            ).scalar()
+        elif h.subtopico_id:
+            dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).join(models.Subtopico).filter(
+                models.Subtopico.id == h.subtopico_id
+            ).scalar()
+
+        if dono_id != usuario_id:
+            continue
+
+        # Conflito se [inicio_novo, fim_novo) intersecta [inicio_existente, fim_existente)
+        if data_inicio < _aware(h.data_fim) and data_fim > _aware(h.data_inicio):
+            return h
+
+    return None
+
+
+@router.get("/agenda")
+def listar_agenda(
+    inicio: str = None,
+    fim: str = None,
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    """Retorna todos os agendamentos do usuário. Filtro opcional por range."""
+    # Busca todos os horários que pertencem a nós do usuário
+    todos = db.query(models.HorarioEstudo).all()
+    resultado = []
+    for h in todos:
+        # Confere se é do usuário
+        dono_id = None
+        if h.topico_id:
+            dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
+                models.Topico.id == h.topico_id
+            ).scalar()
+        elif h.subtopico_id:
+            dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).join(models.Subtopico).filter(
+                models.Subtopico.id == h.subtopico_id
+            ).scalar()
+
+        if dono_id != usuario.id:
+            continue
+
+        # Filtro por range (se passado)
+        if inicio:
+            dt_ini = _parse_datetime(inicio)
+            if _aware(h.data_fim) < dt_ini:
+                continue
+        if fim:
+            dt_fim = _parse_datetime(fim)
+            if _aware(h.data_inicio) > dt_fim:
+                continue
+
+        resultado.append(_serializar_horario(h, db))
+
+    # Ordena por data_inicio
+    resultado.sort(key=lambda x: x["data_inicio"])
+    return resultado
+
+
+@router.post("/agendamentos")
+def criar_agendamento(
+    dados: schemas.AgendamentoCreate,
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    if not dados.topico_id and not dados.subtopico_id:
+        raise HTTPException(status_code=400, detail="Informe topico_id ou subtopico_id")
+    if dados.topico_id and dados.subtopico_id:
+        raise HTTPException(status_code=400, detail="Informe apenas um: topico_id ou subtopico_id")
+
+    # Valida dono
+    if dados.topico_id:
+        pai = db.query(models.Topico).join(models.Materia).join(models.PlanoEstudo).filter(
+            models.Topico.id == dados.topico_id,
+            models.PlanoEstudo.usuario_id == usuario.id
+        ).first()
+    else:
+        pai = db.query(models.Subtopico).join(models.Topico).join(models.Materia).join(models.PlanoEstudo).filter(
+            models.Subtopico.id == dados.subtopico_id,
+            models.PlanoEstudo.usuario_id == usuario.id
+        ).first()
+
+    if not pai:
+        raise HTTPException(status_code=404, detail="Tópico ou subtópico não encontrado")
+
+    dt_inicio = _parse_datetime(dados.data_inicio)
+    dt_fim = _parse_datetime(dados.data_fim)
+    _validar_horario(dt_inicio, dt_fim)
+
+    conflito = _verificar_sobreposicao(db, usuario.id, dt_inicio, dt_fim)
+    if conflito:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Já existe um estudo agendado nesse horário."
+        )
+
+    h = models.HorarioEstudo(
+        topico_id=dados.topico_id,
+        subtopico_id=dados.subtopico_id,
+        data_inicio=dt_inicio,
+        data_fim=dt_fim,
+    )
+    db.add(h)
+    db.commit()
+    db.refresh(h)
+    return _serializar_horario(h, db)
+
+
+@router.patch("/agendamentos/{agendamento_id}")
+def editar_agendamento(
+    agendamento_id: int,
+    dados: schemas.AgendamentoUpdate,
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    h = db.query(models.HorarioEstudo).filter(models.HorarioEstudo.id == agendamento_id).first()
+    if not h:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+
+    # Valida dono
+    dono_id = None
+    if h.topico_id:
+        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
+            models.Topico.id == h.topico_id
+        ).scalar()
+    elif h.subtopico_id:
+        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).join(models.Subtopico).filter(
+            models.Subtopico.id == h.subtopico_id
+        ).scalar()
+    if dono_id != usuario.id:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+
+    dt_inicio = _parse_datetime(dados.data_inicio)
+    dt_fim = _parse_datetime(dados.data_fim)
+    _validar_horario(dt_inicio, dt_fim)
+
+    conflito = _verificar_sobreposicao(db, usuario.id, dt_inicio, dt_fim, ignorar_id=h.id)
+    if conflito:
+        raise HTTPException(status_code=409, detail="Já existe um estudo agendado nesse horário.")
+
+    h.data_inicio = dt_inicio
+    h.data_fim = dt_fim
+    db.commit()
+    db.refresh(h)
+    return _serializar_horario(h, db)
+
+
+@router.delete("/agendamentos/{agendamento_id}")
+def deletar_agendamento(
+    agendamento_id: int,
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    h = db.query(models.HorarioEstudo).filter(models.HorarioEstudo.id == agendamento_id).first()
+    if not h:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+
+    dono_id = None
+    if h.topico_id:
+        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
+            models.Topico.id == h.topico_id
+        ).scalar()
+    elif h.subtopico_id:
+        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).join(models.Subtopico).filter(
+            models.Subtopico.id == h.subtopico_id
+        ).scalar()
+
+    if dono_id != usuario.id:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+
+    db.delete(h)
+    db.commit()
+    return {"mensagem": "Agendamento deletado"}

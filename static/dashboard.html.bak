@@ -103,9 +103,7 @@
         .tabela-materiais thead th.ordenado .seta { opacity: 1; }
         .tabela-materiais thead th.sem-ordem { cursor: default; }
         .tabela-materiais thead th.sem-ordem:hover { background: #2c3e50; }
-        .tabela-materiais tbody tr {
-            border-bottom: 1px solid #ecf0f1; cursor: pointer; transition: 0.15s;
-        }
+        .tabela-materiais tbody tr { border-bottom: 1px solid #ecf0f1; cursor: pointer; transition: 0.15s; }
         .tabela-materiais tbody tr:hover { background: #f9fbfa; }
         .tabela-materiais tbody td { padding: 12px 15px; color: #2c3e50; }
         .tabela-materiais tbody td.col-nome { font-weight: 600; }
@@ -127,9 +125,7 @@
         }
         .linha-filtros { display: none; }
         .linha-filtros.ativa { display: table-row; }
-        .linha-filtros td {
-            background: #f4f7f6; padding: 8px 10px; border-bottom: 1px solid #ecf0f1;
-        }
+        .linha-filtros td { background: #f4f7f6; padding: 8px 10px; border-bottom: 1px solid #ecf0f1; }
         .linha-filtros input {
             width: 100%; padding: 6px 10px; border: 1px solid #ecf0f1;
             border-radius: 4px; font-size: 0.82rem; font-family: inherit;
@@ -310,6 +306,10 @@
         .btn-primary:hover { background: #16a085; }
         .btn-secondary { background: #ecf0f1; color: #2c3e50; }
         .btn-secondary:hover { background: #d5dbdb; }
+
+        .tab-content[data-tipo="subtopicos"] {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -380,21 +380,17 @@
 
             <div class="parte-inferior" id="parte-inferior">
                 <div class="bem-vindo-conteudo" id="bem-vindo-conteudo">
-                    <h3>📖 Conteúdo do subtópico</h3>
-                    <p>Selecione um subtópico acima para ver o material, resumo, links e PDFs.</p>
+                    <h3>📖 Conteúdo</h3>
+                    <p>Selecione um tópico ou subtópico acima para ver o conteúdo.</p>
                 </div>
                 <div id="conteudo-area" style="display:none;">
                     <h2 id="titulo-subtopico"></h2>
-                    <div class="tabs">
-                        <button class="tab-btn active" data-tab="material">📖 Material</button>
-                        <button class="tab-btn" data-tab="resumo">📝 Resumo</button>
-                        <button class="tab-btn" data-tab="link">🔗 Links</button>
-                        <button class="tab-btn" data-tab="pdf">📄 PDFs</button>
-                    </div>
+                    <div class="tabs" id="tabs-container"></div>
                     <div id="tab-material" class="tab-content active"></div>
                     <div id="tab-resumo" class="tab-content"></div>
                     <div id="tab-link" class="tab-content"></div>
                     <div id="tab-pdf" class="tab-content"></div>
+                    <div id="tab-subtopicos" class="tab-content"></div>
                 </div>
             </div>
         </div>
@@ -457,7 +453,7 @@
 
     <script src="/app.js"></script>
     <script>
-        // ==========================================
+            // ==========================================
         // ESTADO
         // ==========================================
         let USUARIO = null;
@@ -468,7 +464,7 @@
         let MATERIAIS_ORDEM = { campo: 'criado_em', direcao: 'desc' };
         let MATERIAIS_EDITANDO = null;
         let PLANO_ATUAL = null;
-        let SUBTOPICO_ATUAL = null;
+        let NO_ATUAL = null;   // tópico ou subtópico selecionado no painel inferior
         let TIPO_CRIACAO = null;
         let CONTEXTO_CRIACAO = null;
         let TIPO_CONTEUDO = null;
@@ -517,16 +513,17 @@
                 const atualizado = ARVORE.find(p => p.id === PLANO_ATUAL.id);
                 if (atualizado) {
                     PLANO_ATUAL = atualizado;
-                    if (SUBTOPICO_ATUAL) {
-                        const subAtual = encontrarSubtopico(SUBTOPICO_ATUAL.id);
-                        if (subAtual) {
-                            SUBTOPICO_ATUAL = subAtual;
-                            renderizarConteudos(subAtual);
+                    // Atualiza o nó atual (tópico ou subtópico) se ainda existe
+                    if (NO_ATUAL) {
+                        const noAtualizado = encontrarNo(NO_ATUAL.tipo, NO_ATUAL.id);
+                        if (noAtualizado) {
+                            NO_ATUAL = { tipo: NO_ATUAL.tipo, id: NO_ATUAL.id, ref: noAtualizado };
+                            renderizarConteudoDoNo();
                         }
                     }
                 } else {
                     PLANO_ATUAL = null;
-                    SUBTOPICO_ATUAL = null;
+                    NO_ATUAL = null;
                 }
             }
 
@@ -595,7 +592,7 @@
         }
 
         // ==========================================
-        // MATERIAIS — TABELA
+        // MATERIAIS
         // ==========================================
         function toggleFiltros() {
             document.getElementById('btn-filtros').classList.toggle('ativo');
@@ -617,7 +614,8 @@
         }
 
         function atualizarSeta(campo) {
-            const th = document.getElementById(`th-${campo === 'materia_nome' ? 'materia' : (campo === 'url_link' ? 'link' : (campo === 'url_arquivo' ? 'arquivo' : 'nome'))}`);
+            const mapId = { nome: 'nome', materia_nome: 'materia', url_link: 'link', url_arquivo: 'arquivo', criado_em: 'nome' };
+            const th = document.getElementById(`th-${mapId[campo] || 'nome'}`);
             if (!th) return;
             document.querySelectorAll('.tabela-materiais thead th').forEach(t => t.classList.remove('ordenado'));
             th.classList.add('ordenado');
@@ -636,7 +634,6 @@
         function renderizarTabelaMateriais() {
             const tbody = document.getElementById('tbody-materiais');
             if (!tbody) return;
-
             atualizarSeta(MATERIAIS_ORDEM.campo);
 
             const visiveis = MATERIAIS.filter(materialBateFiltro);
@@ -664,7 +661,7 @@
             }
 
             if (!visiveis.length) {
-                html += `<tr><td colspan="5" class="vazio-tabela">Nenhum material ${MATERIAIS.length ? 'com esse filtro' : 'ainda'}. ${MATERIAIS.length ? '' : 'Clique em "+ Novo Material" pra começar.'}</td></tr>`;
+                html += `<tr><td colspan="5" class="vazio-tabela">Nenhum material ${MATERIAIS.length ? 'com esse filtro' : 'ainda'}.</td></tr>`;
             } else {
                 visiveis.forEach(m => {
                     const linkCell = m.url_link
@@ -689,7 +686,6 @@
                     </tr>`;
                 });
             }
-
             tbody.innerHTML = html;
         }
 
@@ -806,12 +802,12 @@
             const container = document.getElementById('lista-container');
             let html = '';
             ARVORE.forEach(plano => { html += construirHtmlListaPlano(plano); });
-            if (!html) html = '<p style="text-align:center; color:#7f8c8d; margin-top:60px;">Nenhum plano ainda. Crie um pra começar.</p>';
+            if (!html) html = '<p style="text-align:center; color:#7f8c8d; margin-top:60px;">Nenhum plano ainda.</p>';
             container.innerHTML = html;
         }
 
         function construirHtmlListaPlano(plano) {
-            const subAtualId = SUBTOPICO_ATUAL?.id;
+            const noAtual = NO_ATUAL;
             let html = `<div class="lista-plano">
                 <div class="lista-item">
                     <span class="status-pill ${plano.status}">${plano.porcentagem}%</span>
@@ -835,21 +831,22 @@
 
                 mat.topicos.forEach(top => {
                     const nomeTop = `${top.numero || ''} ${top.nome}`.trim();
+                    const ativoTop = noAtual && noAtual.tipo === 'topico' && noAtual.id === top.id ? 'ativo' : '';
                     html += `<div class="lista-topico">
-                        <div class="lista-item">
+                        <div class="lista-item ${ativoTop}" onclick="selecionarNo('topico', ${top.id})">
                             <span class="status-pill ${top.status}">${top.porcentagem}%</span>
                             <span class="nome-flex">🔖 ${escapeHtml(nomeTop)}</span>
                             ${badgeCat(top.categoria)}
-                            <button class="btn-edit-small" onclick="editarItem('topicos', ${top.id})" title="Editar">✏️</button>
-                            <button class="btn-menu-small" onclick="abrirDropdown(event, 'topico', ${top.id}, '${top.status || 'adicionado'}')" title="Mais opções">⋯</button>
-                            <button class="btn-add-small" onclick="abrirCriacao('subtopico', ${top.id})" title="Novo subtópico">+</button>
+                            <button class="btn-edit-small" onclick="event.stopPropagation(); editarItem('topicos', ${top.id})" title="Editar">✏️</button>
+                            <button class="btn-menu-small" onclick="event.stopPropagation(); abrirDropdown(event, 'topico', ${top.id}, '${top.status || 'adicionado'}')" title="Mais opções">⋯</button>
+                            <button class="btn-add-small" onclick="event.stopPropagation(); abrirCriacao('subtopico', ${top.id})" title="Novo subtópico">+</button>
                         </div>`;
 
                     top.subtopicos.forEach(sub => {
                         const nomeSub = `${sub.numero || ''} ${sub.nome}`.trim();
-                        const ativo = subAtualId === sub.id ? 'ativo' : '';
+                        const ativoSub = noAtual && noAtual.tipo === 'subtopico' && noAtual.id === sub.id ? 'ativo' : '';
                         html += `<div class="lista-subtopico">
-                            <div class="lista-item ${ativo}" onclick="selecionarSubtopico(${sub.id})">
+                            <div class="lista-item ${ativoSub}" onclick="selecionarNo('subtopico', ${sub.id})">
                                 <span class="status-pill ${sub.status}">${sub.porcentagem}%</span>
                                 <span class="nome-flex">📄 ${escapeHtml(nomeSub)}</span>
                                 ${badgeCat(sub.categoria)}
@@ -872,19 +869,41 @@
         }
 
         // ==========================================
-        // SELECIONAR PLANO
+        // SELECIONAR PLANO / NÓ
         // ==========================================
         function selecionarPlano(planoId) {
             const plano = ARVORE.find(p => p.id === planoId);
             if (!plano) return;
             PLANO_ATUAL = plano;
-            SUBTOPICO_ATUAL = null;
+            NO_ATUAL = null;
 
             document.getElementById('bem-vindo-conteudo').style.display = 'block';
             document.getElementById('conteudo-area').style.display = 'none';
 
             if (MODO === 'conta' || MODO === 'materiais') mudarModo('mapa');
             else renderizarModoAtual();
+        }
+
+        function selecionarNo(tipo, id) {
+            const ref = encontrarNo(tipo, id);
+            if (!ref) return;
+            NO_ATUAL = { tipo, id, ref };
+            renderizarConteudoDoNo();
+
+            if (MODO === 'lista') renderizarLista();
+            if (MODO === 'mapa') atualizarSelecaoVisual();
+        }
+
+        function encontrarNo(tipo, id) {
+            for (const plano of ARVORE)
+                for (const mat of plano.materias)
+                    for (const top of mat.topicos) {
+                        if (tipo === 'topico' && top.id === id) return top;
+                        for (const sub of top.subtopicos) {
+                            if (tipo === 'subtopico' && sub.id === id) return sub;
+                        }
+                    }
+            return null;
         }
 
         // ==========================================
@@ -989,23 +1008,15 @@
             const palavras = texto.split(/\s+/);
             const linhas = [];
             let linhaAtual = '';
-
             for (const palavra of palavras) {
                 const tentativa = linhaAtual ? linhaAtual + ' ' + palavra : palavra;
-                if (tentativa.length <= maxCharsPorLinha) {
-                    linhaAtual = tentativa;
-                } else {
-                    if (linhaAtual) linhas.push(linhaAtual);
-                    linhaAtual = palavra;
-                    if (linhas.length === maxLinhas - 1) break;
-                }
+                if (tentativa.length <= maxCharsPorLinha) linhaAtual = tentativa;
+                else { if (linhaAtual) linhas.push(linhaAtual); linhaAtual = palavra; if (linhas.length === maxLinhas - 1) break; }
             }
             if (linhaAtual && linhas.length < maxLinhas) linhas.push(linhaAtual);
             if (linhas.length === maxLinhas) {
                 const ultima = linhas[maxLinhas - 1];
-                if (ultima.length > maxCharsPorLinha) {
-                    linhas[maxLinhas - 1] = ultima.slice(0, maxCharsPorLinha - 1) + '…';
-                }
+                if (ultima.length > maxCharsPorLinha) linhas[maxLinhas - 1] = ultima.slice(0, maxCharsPorLinha - 1) + '…';
             }
             return linhas;
         }
@@ -1024,8 +1035,7 @@
             const linkEnter = link.enter().insert('path', 'g')
                 .attr('class', 'link')
                 .attr('d', () => { const o = { x: source.x0, y: source.y0 }; return diagonal(o, o); });
-            link.merge(linkEnter).transition().duration(duration)
-                .attr('d', d => diagonal(d.source, d.target));
+            link.merge(linkEnter).transition().duration(duration).attr('d', d => diagonal(d.source, d.target));
             link.exit().transition().duration(duration)
                 .attr('d', () => { const o = { x: source.x, y: source.y }; return diagonal(o, o); }).remove();
 
@@ -1035,7 +1045,7 @@
                 .attr('class', d => {
                     let cls = `node nivel-${d.data.tipo} status-${d.data.status || 'adicionado'}`;
                     if (d.data.tipo === 'raiz') cls += ' raiz';
-                    if (SUBTOPICO_ATUAL && d.data.tipo === 'subtopico' && d.data.refId === SUBTOPICO_ATUAL.id) cls += ' selecionado';
+                    if (NO_ATUAL && d.data.tipo === NO_ATUAL.tipo && d.data.refId === NO_ATUAL.id) cls += ' selecionado';
                     return cls;
                 })
                 .attr('transform', () => `translate(${source.y0},${source.x0})`)
@@ -1055,10 +1065,7 @@
                     .attr('class', 'nome-no').attr('text-anchor', 'middle').attr('x', 0);
                 const dyInicial = d.data.tipo === 'raiz' ? '-2.4em' : '-1.6em';
                 linhas.forEach((linha, idx) => {
-                    textoEl.append('tspan')
-                        .attr('x', 0)
-                        .attr('dy', idx === 0 ? dyInicial : '1.15em')
-                        .text(linha);
+                    textoEl.append('tspan').attr('x', 0).attr('dy', idx === 0 ? dyInicial : '1.15em').text(linha);
                 });
             });
 
@@ -1068,8 +1075,7 @@
                 .text(d => `${d.data.porcentagem || 0}%`);
 
             const nodeUpdate = node.merge(nodeEnter);
-            nodeUpdate.transition().duration(duration)
-                .attr('transform', d => `translate(${d.y},${d.x})`);
+            nodeUpdate.transition().duration(duration).attr('transform', d => `translate(${d.y},${d.x})`);
 
             nodeUpdate.select('circle')
                 .attr('r', d => d.data.tipo === 'raiz' ? 28 : (d.data.tipo === 'plano' ? 18 : (d.data.tipo === 'materia' ? 15 : 13)));
@@ -1077,13 +1083,12 @@
             nodeUpdate.attr('class', d => {
                 let cls = `node nivel-${d.data.tipo} status-${d.data.status || 'adicionado'}`;
                 if (d.data.tipo === 'raiz') cls += ' raiz';
-                if (SUBTOPICO_ATUAL && d.data.tipo === 'subtopico' && d.data.refId === SUBTOPICO_ATUAL.id) cls += ' selecionado';
+                if (NO_ATUAL && d.data.tipo === NO_ATUAL.tipo && d.data.refId === NO_ATUAL.id) cls += ' selecionado';
                 return cls;
             });
 
             nodeUpdate.filter(d => d.data.tipo === 'raiz')
-                .select('circle')
-                .style('fill', corDaRaiz()).style('stroke', corDaRaiz());
+                .select('circle').style('fill', corDaRaiz()).style('stroke', corDaRaiz());
 
             nodeUpdate.select('text.porcentagem-no').text(d => `${d.data.porcentagem || 0}%`);
 
@@ -1100,14 +1105,21 @@
 
         function clicarNo(d) {
             if (d.data.tipo === 'raiz') return;
+
             if (d.data.tipo === 'subtopico') {
-                const sub = encontrarSubtopico(d.data.refId);
-                if (sub) {
-                    SUBTOPICO_ATUAL = sub;
-                    atualizarSelecaoVisual();
-                    selecionarSubtopico(d.data.refId);
-                }
+                NO_ATUAL = { tipo: 'subtopico', id: d.data.refId, ref: encontrarNo('subtopico', d.data.refId) };
+                atualizarSelecaoVisual();
+                renderizarConteudoDoNo();
+            } else if (d.data.tipo === 'topico') {
+                // Colapsa/expande E carrega conteúdo do tópico
+                if (d.children) { d._children = d.children; d.children = null; NOS_EXPANDIDOS.delete(d.data.id); }
+                else if (d._children) { d.children = d._children; d._children = null; NOS_EXPANDIDOS.add(d.data.id); }
+
+                NO_ATUAL = { tipo: 'topico', id: d.data.refId, ref: encontrarNo('topico', d.data.refId) };
+                atualizarMapa(d);
+                renderizarConteudoDoNo();
             } else {
+                // Matéria ou plano — só colapsa/expande
                 if (d.children) { d._children = d.children; d.children = null; NOS_EXPANDIDOS.delete(d.data.id); }
                 else if (d._children) { d.children = d._children; d._children = null; NOS_EXPANDIDOS.add(d.data.id); }
                 atualizarMapa(d);
@@ -1116,7 +1128,7 @@
 
         function atualizarSelecaoVisual() {
             d3.selectAll('.node').classed('selecionado', function(d) {
-                return SUBTOPICO_ATUAL && d.data.tipo === 'subtopico' && d.data.refId === SUBTOPICO_ATUAL.id;
+                return NO_ATUAL && d.data.tipo === NO_ATUAL.tipo && d.data.refId === NO_ATUAL.id;
             });
         }
 
@@ -1134,6 +1146,130 @@
             root.each(d => { if (d.depth >= 1 && d.children) { d._children = d.children; d.children = null; } });
             NOS_EXPANDIDOS.clear();
             atualizarMapa(root);
+        }
+
+        // ==========================================
+        // CONTEÚDO DO NÓ ATUAL (tópico ou subtópico)
+        // ==========================================
+        function renderizarConteudoDoNo() {
+            if (!NO_ATUAL || !NO_ATUAL.ref) {
+                document.getElementById('bem-vindo-conteudo').style.display = 'block';
+                document.getElementById('conteudo-area').style.display = 'none';
+                return;
+            }
+
+            const no = NO_ATUAL.ref;
+            document.getElementById('bem-vindo-conteudo').style.display = 'none';
+            document.getElementById('conteudo-area').style.display = 'block';
+            document.getElementById('titulo-subtopico').innerText =
+                `📄 ${no.numero || ''} ${no.nome}`.trim();
+
+            // Monta as abas
+            const tabs = [
+                { id: 'material', label: '📖 Material' },
+                { id: 'resumo', label: '📝 Resumo' },
+                { id: 'link', label: '🔗 Links' },
+                { id: 'pdf', label: '📄 PDFs' },
+            ];
+            if (NO_ATUAL.tipo === 'topico') {
+                tabs.push({ id: 'subtopicos', label: '📂 Subtópicos' });
+            }
+
+            document.getElementById('tabs-container').innerHTML = tabs.map((t, idx) =>
+                `<button class="tab-btn ${idx === 0 ? 'active' : ''}" data-tab="${t.id}" onclick="trocarTab('${t.id}')">${t.label}</button>`
+            ).join('');
+
+            // Renderiza o conteúdo de cada aba
+            renderizarConteudos(no, NO_ATUAL.tipo);
+            if (NO_ATUAL.tipo === 'topico') renderizarTabSubtopicos(no);
+
+            // Ativa só a primeira aba
+            trocarTab('material');
+        }
+
+        function renderizarConteudos(no, tipo) {
+            const tipos = { material: [], resumo: [], link: [], pdf: [] };
+            (no.conteudos || []).forEach(c => { if (tipos[c.tipo]) tipos[c.tipo].push(c); });
+
+            Object.keys(tipos).forEach(t => {
+                const container = document.getElementById(`tab-${t}`);
+                let html = '';
+                if (!tipos[t].length) {
+                    html = `<p style="color:#7f8c8d;">Nenhum conteúdo de <strong>${t}</strong> ainda.</p>`;
+                } else {
+                    tipos[t].forEach(c => {
+                        html += `<div class="conteudo-bloco">
+                            <button class="btn-del" onclick="deletarItem('conteudos', ${c.id})" title="Excluir">✕</button>
+                            ${c.titulo ? `<h4>${escapeHtml(c.titulo)}</h4>` : ''}
+                            ${renderizarCorpoConteudo(c, t)}
+                        </div>`;
+                    });
+                }
+                html += `<button class="tab-add-btn" onclick="abrirCriacaoConteudo('${t}')">+ Adicionar ${rotuloTipo(t)}</button>`;
+                container.innerHTML = html;
+            });
+        }
+
+        function renderizarTabSubtopicos(topico) {
+            const container = document.getElementById('tab-subtopicos');
+            let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span style="font-size:0.9rem; color:#7f8c8d;">Subtópicos deste tópico</span>
+                <button class="btn btn-primary" style="padding:8px 14px; font-size:0.85rem;" onclick="abrirCriacao('subtopico', ${topico.id})">+ Novo Subtópico</button>
+            </div>`;
+
+            if (!topico.subtopicos.length) {
+                html += `<p style="color:#7f8c8d;">Nenhum subtópico ainda.</p>`;
+            } else {
+                html += `<div class="lista-plano">`;
+                topico.subtopicos.forEach(sub => {
+                    const nomeSub = `${sub.numero || ''} ${sub.nome}`.trim();
+                    const ativo = NO_ATUAL && NO_ATUAL.tipo === 'subtopico' && NO_ATUAL.id === sub.id ? 'ativo' : '';
+                    html += `<div class="lista-subtopico" style="margin-left:0;">
+                        <div class="lista-item ${ativo}" onclick="selecionarNo('subtopico', ${sub.id})">
+                            <span class="status-pill ${sub.status}">${sub.porcentagem}%</span>
+                            <span class="nome-flex">📄 ${escapeHtml(nomeSub)}</span>
+                            ${badgeCat(sub.categoria)}
+                            <button class="btn-edit-small" onclick="event.stopPropagation(); editarItem('subtopicos', ${sub.id})" title="Editar">✏️</button>
+                            <button class="btn-menu-small" onclick="event.stopPropagation(); abrirDropdown(event, 'subtopico', ${sub.id}, '${sub.status || 'adicionado'}')" title="Mais opções">⋯</button>
+                        </div>
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function renderizarCorpoConteudo(c, tipo) {
+            let partes = [];
+            if (c.texto) partes.push(`<p>${escapeHtml(c.texto).replace(/\n/g, '<br>')}</p>`);
+            if (c.url_link) partes.push(`<a href="${escapeHtml(c.url_link)}" target="_blank" rel="noopener">${escapeHtml(c.url_link)}</a>`);
+            if (c.url_arquivo) partes.push(`<a href="${escapeHtml(c.url_arquivo)}" target="_blank" rel="noopener">📎 Baixar arquivo anexado</a>`);
+            return partes.join('') || '<em>Sem conteúdo.</em>';
+        }
+
+        function rotuloTipo(tipo) { return { material: 'Material', resumo: 'Resumo', link: 'Link', pdf: 'PDF' }[tipo]; }
+
+        // ==========================================
+        // TABS
+        // ==========================================
+        function trocarTab(tab) {
+            // Botões
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+            if (btn) btn.classList.add('active');
+
+            // Conteúdos — esconde TODOS primeiro
+            document.querySelectorAll('.tab-content').forEach(c => {
+                c.classList.remove('active');
+                c.style.display = 'none';
+            });
+
+            // Mostra só o ativo
+            const el = document.getElementById(`tab-${tab}`);
+            if (el) {
+                el.classList.add('active');
+                el.style.display = 'block';
+            }
         }
 
         // ==========================================
@@ -1224,7 +1360,6 @@
 
         function mostrarSubmenuCores(dropdownPai) {
             dropdownPai.innerHTML = '';
-
             const voltar = document.createElement('div');
             voltar.className = 'voltar-submenu';
             voltar.innerHTML = '← Voltar';
@@ -1265,7 +1400,7 @@
                     .style('fill', novaCor).style('stroke', novaCor);
             } else if (resp) {
                 const err = await resp.json();
-                mostrarToast(err.detail || 'Erro ao mudar cor', 'error');
+                mostrarToast(err.detail || 'Erro', 'error');
             }
         }
 
@@ -1305,88 +1440,13 @@
             const resp = await apiFetch(`/api/estudos/${recurso}/${id}`, { method: 'DELETE' });
             if (resp && resp.ok) {
                 mostrarToast('Excluído', 'success');
-                if (recurso === 'planos' && PLANO_ATUAL && PLANO_ATUAL.id === id) {
-                    PLANO_ATUAL = null; SUBTOPICO_ATUAL = null;
-                }
+                if (recurso === 'planos' && PLANO_ATUAL && PLANO_ATUAL.id === id) { PLANO_ATUAL = null; NO_ATUAL = null; }
+                if ((recurso === 'topicos' || recurso === 'subtopicos') && NO_ATUAL && NO_ATUAL.id === id) NO_ATUAL = null;
                 await carregarArvore();
             } else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
         }
 
         function deletarItem(tipo, id) { return excluirItem(tipo, id); }
-
-        // ==========================================
-        // CONTEÚDO
-        // ==========================================
-        function selecionarSubtopico(id) {
-            const sub = encontrarSubtopico(id);
-            if (!sub) return;
-            SUBTOPICO_ATUAL = sub;
-
-            document.getElementById('bem-vindo-conteudo').style.display = 'none';
-            document.getElementById('conteudo-area').style.display = 'block';
-            document.getElementById('titulo-subtopico').innerText = `📄 ${sub.numero || ''} ${sub.nome}`.trim();
-
-            renderizarConteudos(sub);
-            trocarTab('material');
-
-            if (MODO === 'lista') renderizarLista();
-            if (MODO === 'mapa') atualizarSelecaoVisual();
-        }
-
-        function encontrarSubtopico(id) {
-            for (const plano of ARVORE)
-                for (const mat of plano.materias)
-                    for (const top of mat.topicos)
-                        for (const sub of top.subtopicos)
-                            if (sub.id === id) return sub;
-            return null;
-        }
-
-        function renderizarConteudos(sub) {
-            const tipos = { material: [], resumo: [], link: [], pdf: [] };
-            sub.conteudos.forEach(c => { if (tipos[c.tipo]) tipos[c.tipo].push(c); });
-            Object.keys(tipos).forEach(tipo => {
-                const container = document.getElementById(`tab-${tipo}`);
-                let html = '';
-                if (!tipos[tipo].length) {
-                    html = `<p style="color:#7f8c8d;">Nenhum conteúdo de <strong>${tipo}</strong> ainda.</p>`;
-                } else {
-                    tipos[tipo].forEach(c => {
-                        html += `<div class="conteudo-bloco">
-                            <button class="btn-del" onclick="deletarItem('conteudos', ${c.id})" title="Excluir">✕</button>
-                            ${c.titulo ? `<h4>${escapeHtml(c.titulo)}</h4>` : ''}
-                            ${renderizarCorpoConteudo(c, tipo)}
-                        </div>`;
-                    });
-                }
-                html += `<button class="tab-add-btn" onclick="abrirCriacaoConteudo('${tipo}')">+ Adicionar ${rotuloTipo(tipo)}</button>`;
-                container.innerHTML = html;
-            });
-        }
-
-        function renderizarCorpoConteudo(c, tipo) {
-            let partes = [];
-            if (c.texto) partes.push(`<p>${escapeHtml(c.texto).replace(/\n/g, '<br>')}</p>`);
-            if (c.url_link) partes.push(`<a href="${escapeHtml(c.url_link)}" target="_blank" rel="noopener">${escapeHtml(c.url_link)}</a>`);
-            if (c.url_arquivo) partes.push(`<a href="${escapeHtml(c.url_arquivo)}" target="_blank" rel="noopener">📎 Baixar arquivo anexado</a>`);
-            return partes.join('') || '<em>Sem conteúdo.</em>';
-        }
-
-        function rotuloTipo(tipo) { return { material: 'Material', resumo: 'Resumo', link: 'Link', pdf: 'PDF' }[tipo]; }
-
-        // ==========================================
-        // TABS
-        // ==========================================
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => trocarTab(btn.dataset.tab));
-        });
-
-        function trocarTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
-            document.getElementById(`tab-${tab}`).classList.add('active');
-        }
 
         // ==========================================
         // CRIAÇÃO
@@ -1398,10 +1458,8 @@
             CONTEXTO_CRIACAO = paiId;
 
             const titulos = {
-                plano: 'Novo Plano de Estudos',
-                materia: 'Nova Matéria',
-                topico: 'Novo Tópico',
-                subtopico: 'Novo Subtópico'
+                plano: 'Novo Plano de Estudos', materia: 'Nova Matéria',
+                topico: 'Novo Tópico', subtopico: 'Novo Subtópico'
             };
             document.getElementById('modal-titulo').innerText = titulos[tipo];
 
@@ -1454,7 +1512,6 @@
             const categoria_id = catId && catId !== '__nova__' ? parseInt(catId) : null;
 
             if (!nome) { mostrarToast('Preencha o nome', 'error'); return; }
-
             const eraNovoPlano = TIPO_CRIACAO === 'plano';
 
             let url, body;
@@ -1482,6 +1539,11 @@
                 if (eraNovoPlano && criado && criado.id) {
                     NOS_EXPANDIDOS.add(`plano-${criado.id}`);
                     selecionarPlano(criado.id);
+                }
+                if (TIPO_CRIACAO === 'subtopico' && NO_ATUAL && NO_ATUAL.tipo === 'topico') {
+                    // Re-renderiza a aba Subtópicos com o novo
+                    const topAtual = encontrarNo('topico', NO_ATUAL.id);
+                    if (topAtual) { NO_ATUAL.ref = topAtual; renderizarTabSubtopicos(topAtual); }
                 }
             } else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
         }
@@ -1534,9 +1596,7 @@
             if (numero !== undefined) body.numero = numero || null;
             if (descricao !== undefined) body.descricao = descricao || null;
 
-            const resp = await apiFetch(`/api/estudos/${recurso}/${id}`, {
-                method: 'PATCH', body: JSON.stringify(body)
-            });
+            const resp = await apiFetch(`/api/estudos/${recurso}/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
             if (resp && resp.ok) {
                 mostrarToast('Salvo!', 'success');
                 fecharModalEditar();
@@ -1593,10 +1653,7 @@
             if (!nome) { await carregarCategorias(); return; }
             const atual = CATEGORIAS.find(c => c.id === id);
             if (atual && atual.nome === nome) return;
-
-            const resp = await apiFetch(`/api/estudos/categorias/${id}`, {
-                method: 'PATCH', body: JSON.stringify({ nome })
-            });
+            const resp = await apiFetch(`/api/estudos/categorias/${id}`, { method: 'PATCH', body: JSON.stringify({ nome }) });
             if (resp && resp.ok) {
                 mostrarToast('Categoria atualizada', 'success');
                 await carregarCategorias();
@@ -1609,9 +1666,7 @@
         }
 
         async function adicionarCategoriaVazia() {
-            const resp = await apiFetch('/api/estudos/categorias', {
-                method: 'POST', body: JSON.stringify({ nome: 'Nova categoria' })
-            });
+            const resp = await apiFetch('/api/estudos/categorias', { method: 'POST', body: JSON.stringify({ nome: 'Nova categoria' }) });
             if (resp && resp.ok) {
                 await carregarCategorias();
                 setTimeout(() => {
@@ -1639,7 +1694,6 @@
         function fecharModalCategorias() {
             document.getElementById('modal-categorias').style.display = 'none';
             renderizarListaCategorias();
-
             if (CATEGORIA_VOLTAR_PARA_MODAL) {
                 const selectCriar = document.getElementById('campo-categoria');
                 if (selectCriar) selectCriar.innerHTML = optionsCategorias(selectCriar.value);
@@ -1658,7 +1712,7 @@
         // MODAL CONTEÚDO
         // ==========================================
         function abrirCriacaoConteudo(tipo) {
-            if (!SUBTOPICO_ATUAL) { mostrarToast('Selecione um subtópico', 'error'); return; }
+            if (!NO_ATUAL) { mostrarToast('Selecione um tópico ou subtópico', 'error'); return; }
             TIPO_CONTEUDO = tipo;
             document.getElementById('modal-conteudo-titulo').innerText = `Adicionar ${rotuloTipo(tipo)}`;
 
@@ -1689,14 +1743,14 @@
 
             const formData = new FormData();
             formData.append('tipo', TIPO_CONTEUDO);
+            if (NO_ATUAL.tipo === 'topico') formData.append('topico_id', NO_ATUAL.id);
+            else formData.append('subtopico_id', NO_ATUAL.id);
             if (titulo) formData.append('titulo', titulo);
             if (texto) formData.append('texto', texto);
             if (link) formData.append('url_link', link);
             if (arquivo) formData.append('arquivo', arquivo);
 
-            const resp = await apiFetch(`/api/estudos/subtopicos/${SUBTOPICO_ATUAL.id}/conteudo`, {
-                method: 'POST', body: formData
-            });
+            const resp = await apiFetch('/api/estudos/conteudos', { method: 'POST', body: formData });
             if (resp && resp.ok) {
                 mostrarToast('Conteúdo adicionado!', 'success');
                 fecharModalConteudo();

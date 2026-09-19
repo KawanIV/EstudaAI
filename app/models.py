@@ -83,6 +83,7 @@ class Topico(Base):
     categoria = relationship("Categoria", foreign_keys=[categoria_id])
     subtopicos = relationship("Subtopico", back_populates="topico", cascade="all, delete-orphan")
     conteudos = relationship("Conteudo", back_populates="topico", cascade="all, delete-orphan")   # 👈 NOVA LINHA
+    horarios = relationship("HorarioEstudo", back_populates="topico", cascade="all, delete-orphan")
 
 
 class Subtopico(Base):
@@ -99,6 +100,7 @@ class Subtopico(Base):
     categoria = relationship("Categoria", foreign_keys=[categoria_id])
     conteudos = relationship("Conteudo", back_populates="subtopico", cascade="all, delete-orphan")
     perguntas = relationship("Pergunta", back_populates="subtopico", cascade="all, delete-orphan")
+    horarios = relationship("HorarioEstudo", back_populates="subtopico", cascade="all, delete-orphan")
 
 # ==========================================================
 # MATERIAIS (biblioteca pessoal do aluno)
@@ -149,6 +151,21 @@ class Pergunta(Base):
 
     subtopico = relationship("Subtopico", back_populates="perguntas")
 
+# ==========================================================
+# AGENDA
+# ==========================================================
+
+class HorarioEstudo(Base):
+    __tablename__ = "horarios_estudo"
+    id = Column(Integer, primary_key=True, index=True)
+    topico_id = Column(Integer, ForeignKey("topicos.id", ondelete="CASCADE"), nullable=True)
+    subtopico_id = Column(Integer, ForeignKey("subtopicos.id", ondelete="CASCADE"), nullable=True)
+    data_inicio = Column(DateTime(timezone=True), nullable=False)
+    data_fim = Column(DateTime(timezone=True), nullable=False)
+    criado_em = Column(DateTime(timezone=True), server_default=func.now())
+
+    topico = relationship("Topico", back_populates="horarios")
+    subtopico = relationship("Subtopico", back_populates="horarios")
 
 # ==========================================================
 # PROGRESSO E MÉTRICAS
