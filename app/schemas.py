@@ -83,3 +83,15 @@ class StatusUpdate(BaseModel):
 # Cores
 class UsuarioCorUpdate(BaseModel):
     cor_raiz: str
+
+# ============ MATERIAIS ============
+class MaterialCreate(BaseModel):
+    nome: str
+    materia_id: Optional[int] = None
+    url_link: Optional[str] = None
+
+
+class MaterialUpdate(BaseModel):
+    nome: Optional[str] = None
+    materia_id: Optional[int] = None
+    url_link: Optional[str] = None

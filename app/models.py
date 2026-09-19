@@ -99,6 +99,22 @@ class Subtopico(Base):
     conteudos = relationship("Conteudo", back_populates="subtopico", cascade="all, delete-orphan")
     perguntas = relationship("Pergunta", back_populates="subtopico", cascade="all, delete-orphan")
 
+# ==========================================================
+# MATERIAIS (biblioteca pessoal do aluno)
+# ==========================================================
+
+class Material(Base):
+    __tablename__ = "materiais"
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    materia_id = Column(Integer, ForeignKey("materias.id", ondelete="SET NULL"), nullable=True)
+    nome = Column(String(200), nullable=False)
+    url_arquivo = Column(String(500))
+    url_link = Column(String(500))
+    criado_em = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("Usuario")
+    materia = relationship("Materia")
 
 # ==========================================================
 # CONTEÚDOS

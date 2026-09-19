@@ -536,3 +536,176 @@ def deletar_conteudo(conteudo_id: int, usuario=Depends(get_usuario_atual), db: S
     db.delete(conteudo)
     db.commit()
     return {"mensagem": "Conteúdo deletado"}
+
+# ==========================================================
+# MATERIAIS (biblioteca pessoal)
+# ==========================================================
+
+@router.get("/materiais")
+def listar_materiais(usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    materiais = db.query(models.Material).filter(
+        models.Material.usuario_id == usuario.id
+    ).order_by(models.Material.criado_em.desc()).all()
+
+    return [
+        {
+            "id": m.id,
+            "nome": m.nome,
+            "url_arquivo": m.url_arquivo,
+            "url_link": m.url_link,
+            "materia_id": m.materia_id,
+            "materia_nome": m.materia.nome if m.materia else None,
+            "criado_em": m.criado_em.isoformat() if m.criado_em else None,
+        }
+        for m in materiais
+    ]
+
+
+@router.post("/materiais")
+def criar_material(
+    nome: str = Form(...),
+    materia_id: str = Form(None),
+    url_link: str = Form(None),
+    arquivo: UploadFile = File(None),
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    nome_limpo = nome.strip()
+    if not nome_limpo:
+        raise HTTPException(status_code=400, detail="Nome é obrigatório")
+
+    mat_id = None
+    if materia_id and materia_id.strip():
+        try:
+            mat_id = int(materia_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="materia_id inválido")
+        # Valida que a matéria é do usuário
+        materia = db.query(models.Materia).join(models.PlanoEstudo).filter(
+            models.Materia.id == mat_id,
+            models.PlanoEstudo.usuario_id == usuario.id
+        ).first()
+        if not materia:
+            raise HTTPException(status_code=404, detail="Matéria não encontrada")
+
+    url_arquivo = None
+    if arquivo and arquivo.filename:
+        ext = os.path.splitext(arquivo.filename)[1].lower()
+        if ext not in EXTENSOES_PERMITIDAS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Extensão {ext} não permitida. Use: {', '.join(sorted(EXTENSOES_PERMITIDAS))}"
+            )
+        nome_unico = f"{uuid.uuid4()}_{arquivo.filename}"
+        caminho = os.path.join(UPLOAD_DIR, nome_unico)
+        with open(caminho, "wb") as f:
+            f.write(arquivo.file.read())
+        url_arquivo = f"/uploads/{nome_unico}"
+
+    material = models.Material(
+        usuario_id=usuario.id,
+        materia_id=mat_id,
+        nome=nome_limpo,
+        url_arquivo=url_arquivo,
+        url_link=url_link.strip() if url_link else None,
+    )
+    db.add(material)
+    db.commit()
+    db.refresh(material)
+    return {
+        "id": material.id,
+        "nome": material.nome,
+        "url_arquivo": material.url_arquivo,
+        "url_link": material.url_link,
+        "materia_id": material.materia_id,
+    }
+
+
+@router.patch("/materiais/{material_id}")
+def editar_material(
+    material_id: int,
+    nome: str = Form(None),
+    materia_id: str = Form(None),
+    url_link: str = Form(None),
+    arquivo: UploadFile = File(None),
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    material = db.query(models.Material).filter(
+        models.Material.id == material_id,
+        models.Material.usuario_id == usuario.id
+    ).first()
+    if not material:
+        raise HTTPException(status_code=404, detail="Material não encontrado")
+
+    if nome is not None:
+        nome_limpo = nome.strip()
+        if not nome_limpo:
+            raise HTTPException(status_code=400, detail="Nome não pode ser vazio")
+        material.nome = nome_limpo
+
+    if materia_id is not None:
+        if materia_id.strip() == "":
+            material.materia_id = None
+        else:
+            try:
+                mat_id = int(materia_id)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="materia_id inválido")
+            materia = db.query(models.Materia).join(models.PlanoEstudo).filter(
+                models.Materia.id == mat_id,
+                models.PlanoEstudo.usuario_id == usuario.id
+            ).first()
+            if not materia:
+                raise HTTPException(status_code=404, detail="Matéria não encontrada")
+            material.materia_id = mat_id
+
+    if url_link is not None:
+        material.url_link = url_link.strip() or None
+
+    if arquivo and arquivo.filename:
+        ext = os.path.splitext(arquivo.filename)[1].lower()
+        if ext not in EXTENSOES_PERMITIDAS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Extensão {ext} não permitida. Use: {', '.join(sorted(EXTENSOES_PERMITIDAS))}"
+            )
+        # Remove o arquivo antigo, se houver
+        if material.url_arquivo:
+            antigo = material.url_arquivo.lstrip("/")
+            if os.path.exists(antigo):
+                os.remove(antigo)
+        nome_unico = f"{uuid.uuid4()}_{arquivo.filename}"
+        caminho = os.path.join(UPLOAD_DIR, nome_unico)
+        with open(caminho, "wb") as f:
+            f.write(arquivo.file.read())
+        material.url_arquivo = f"/uploads/{nome_unico}"
+
+    db.commit()
+    db.refresh(material)
+    return {
+        "id": material.id,
+        "nome": material.nome,
+        "url_arquivo": material.url_arquivo,
+        "url_link": material.url_link,
+        "materia_id": material.materia_id,
+    }
+
+
+@router.delete("/materiais/{material_id}")
+def deletar_material(material_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    material = db.query(models.Material).filter(
+        models.Material.id == material_id,
+        models.Material.usuario_id == usuario.id
+    ).first()
+    if not material:
+        raise HTTPException(status_code=404, detail="Material não encontrado")
+
+    if material.url_arquivo:
+        caminho = material.url_arquivo.lstrip("/")
+        if os.path.exists(caminho):
+            os.remove(caminho)
+
+    db.delete(material)
+    db.commit()
+    return {"mensagem": "Material deletado"}
