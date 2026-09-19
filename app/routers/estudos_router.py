@@ -173,62 +173,50 @@ def arvore_completa(usuario=Depends(get_usuario_atual), db: Session = Depends(ge
         models.PlanoEstudo.usuario_id == usuario.id
     ).all()
 
+    def serializar_conteudo(c):
+        return {
+            "id": c.id, "tipo": c.tipo, "titulo": c.titulo,
+            "texto": c.texto, "url_arquivo": c.url_arquivo,
+            "url_link": c.url_link
+        }
+
     resultado = []
     for plano in planos:
         plano_status, plano_pct = status_do_plano(plano)
-
         materias_list = []
         for m in plano.materias:
             mat_status, mat_pct = status_da_materia(m)
-
             topicos_list = []
             for t in m.topicos:
                 top_status, top_pct = status_do_topico(t)
-
                 subs_list = []
                 for s in t.subtopicos:
                     sub_status, sub_pct = status_do_subtopico(s)
                     subs_list.append({
-                        "id": s.id,
-                        "numero": s.numero,
-                        "nome": s.nome,
+                        "id": s.id, "numero": s.numero, "nome": s.nome,
                         "categoria": serializar_categoria(s.categoria),
-                        "status": sub_status,
-                        "porcentagem": sub_pct,
-                        "conteudos": [
-                            {
-                                "id": c.id, "tipo": c.tipo, "titulo": c.titulo,
-                                "texto": c.texto, "url_arquivo": c.url_arquivo,
-                                "url_link": c.url_link
-                            } for c in s.conteudos
-                        ],
+                        "status": sub_status, "porcentagem": sub_pct,
+                        "conteudos": [serializar_conteudo(c) for c in s.conteudos],
                     })
-
                 topicos_list.append({
                     "id": t.id, "numero": t.numero, "nome": t.nome,
                     "categoria": serializar_categoria(t.categoria),
-                    "status": top_status,
-                    "porcentagem": top_pct,
+                    "status": top_status, "porcentagem": top_pct,
+                    "conteudos": [serializar_conteudo(c) for c in t.conteudos],   # 👈 NOVA LINHA
                     "subtopicos": subs_list,
                 })
-
             materias_list.append({
                 "id": m.id, "nome": m.nome,
                 "categoria": serializar_categoria(m.categoria),
-                "status": mat_status,
-                "porcentagem": mat_pct,
+                "status": mat_status, "porcentagem": mat_pct,
                 "topicos": topicos_list,
             })
-
         resultado.append({
-            "id": plano.id,
-            "nome": plano.nome,
+            "id": plano.id, "nome": plano.nome,
             "categoria": serializar_categoria(plano.categoria),
-            "status": plano_status,
-            "porcentagem": plano_pct,
+            "status": plano_status, "porcentagem": plano_pct,
             "materias": materias_list,
         })
-
     return resultado
 
 
@@ -473,9 +461,10 @@ def deletar_subtopico(subtopico_id: int, usuario=Depends(get_usuario_atual), db:
 # CONTEÚDOS
 # ==========================================================
 
-@router.post("/subtopicos/{subtopico_id}/conteudo")
+@router.post("/conteudos")
 def criar_conteudo(
-    subtopico_id: int,
+    topico_id: int = Form(None),
+    subtopico_id: int = Form(None),
     tipo: str = Form(...),
     titulo: str = Form(None),
     texto: str = Form(None),
@@ -484,12 +473,25 @@ def criar_conteudo(
     usuario=Depends(get_usuario_atual),
     db: Session = Depends(get_db),
 ):
-    sub = db.query(models.Subtopico).join(models.Topico).join(models.Materia).join(models.PlanoEstudo).filter(
-        models.Subtopico.id == subtopico_id,
-        models.PlanoEstudo.usuario_id == usuario.id
-    ).first()
-    if not sub:
-        raise HTTPException(status_code=404, detail="Subtópico não encontrado")
+    if not topico_id and not subtopico_id:
+        raise HTTPException(status_code=400, detail="Informe topico_id ou subtopico_id")
+    if topico_id and subtopico_id:
+        raise HTTPException(status_code=400, detail="Informe apenas um: topico_id ou subtopico_id")
+
+    # Valida que pertence ao usuário
+    if topico_id:
+        pai = db.query(models.Topico).join(models.Materia).join(models.PlanoEstudo).filter(
+            models.Topico.id == topico_id,
+            models.PlanoEstudo.usuario_id == usuario.id
+        ).first()
+    else:
+        pai = db.query(models.Subtopico).join(models.Topico).join(models.Materia).join(models.PlanoEstudo).filter(
+            models.Subtopico.id == subtopico_id,
+            models.PlanoEstudo.usuario_id == usuario.id
+        ).first()
+
+    if not pai:
+        raise HTTPException(status_code=404, detail="Tópico ou subtópico não encontrado")
 
     url_arquivo = None
     if arquivo and arquivo.filename:
@@ -506,6 +508,7 @@ def criar_conteudo(
         url_arquivo = f"/uploads/{nome_unico}"
 
     conteudo = models.Conteudo(
+        topico_id=topico_id,
         subtopico_id=subtopico_id,
         tipo=tipo,
         titulo=titulo,
@@ -521,11 +524,27 @@ def criar_conteudo(
 
 @router.delete("/conteudos/{conteudo_id}")
 def deletar_conteudo(conteudo_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
-    conteudo = db.query(models.Conteudo).join(models.Subtopico).join(models.Topico).join(models.Materia).join(models.PlanoEstudo).filter(
-        models.Conteudo.id == conteudo_id,
-        models.PlanoEstudo.usuario_id == usuario.id
-    ).first()
+    conteudo = db.query(models.Conteudo).outerjoin(
+        models.Topico, models.Conteudo.topico_id == models.Topico.id
+    ).outerjoin(
+        models.Subtopico, models.Conteudo.subtopico_id == models.Subtopico.id
+    ).filter(models.Conteudo.id == conteudo_id).first()
+
     if not conteudo:
+        raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
+
+    # Valida que o usuário é dono
+    dono_id = None
+    if conteudo.topico_id:
+        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
+            models.Topico.id == conteudo.topico_id
+        ).scalar()
+    elif conteudo.subtopico_id:
+        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).join(models.Subtopico).filter(
+            models.Subtopico.id == conteudo.subtopico_id
+        ).scalar()
+
+    if dono_id != usuario.id:
         raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
 
     if conteudo.url_arquivo:

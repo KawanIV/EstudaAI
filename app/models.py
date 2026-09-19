@@ -82,6 +82,7 @@ class Topico(Base):
     materia = relationship("Materia", back_populates="topicos")
     categoria = relationship("Categoria", foreign_keys=[categoria_id])
     subtopicos = relationship("Subtopico", back_populates="topico", cascade="all, delete-orphan")
+    conteudos = relationship("Conteudo", back_populates="topico", cascade="all, delete-orphan")   # 👈 NOVA LINHA
 
 
 class Subtopico(Base):
@@ -123,7 +124,8 @@ class Material(Base):
 class Conteudo(Base):
     __tablename__ = "conteudos"
     id = Column(Integer, primary_key=True, index=True)
-    subtopico_id = Column(Integer, ForeignKey("subtopicos.id"), nullable=False)
+    topico_id = Column(Integer, ForeignKey("topicos.id", ondelete="CASCADE"), nullable=True)
+    subtopico_id = Column(Integer, ForeignKey("subtopicos.id", ondelete="CASCADE"), nullable=True)
     tipo = Column(String(20), nullable=False)
     titulo = Column(String(200))
     texto = Column(Text)
@@ -131,6 +133,7 @@ class Conteudo(Base):
     url_link = Column(String(500))
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
 
+    topico = relationship("Topico", back_populates="conteudos")
     subtopico = relationship("Subtopico", back_populates="conteudos")
 
 
