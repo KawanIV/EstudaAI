@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kahan - Meus Estudos</title>
+    <title>Meus Estudos</title>
     <link rel="stylesheet" href="/style.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
@@ -36,11 +36,19 @@
         .parte-inferior { flex: 1; overflow-y: auto; padding: 25px 30px; background: white; }
         .parte-inferior .bem-vindo-conteudo { text-align: center; color: #7f8c8d; margin-top: 60px; }
 
+        /* OVERLAYS FULL (Materiais, Minha Conta) */
+        .overlay-full {
+            position: fixed; top: 0; left: 150px; right: 0; bottom: 0;
+            background: white; z-index: 500;
+            overflow-y: auto;
+        }
+
         /* MINHA CONTA */
-        .minha-conta-wrap { height: 100%; overflow-y: auto; padding: 25px 35px; }
+        .minha-conta-wrap { padding: 25px 35px; }
         .minha-conta-dados {
             background: white; border-radius: 10px; padding: 20px 25px;
             margin-bottom: 25px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            border: 1px solid #ecf0f1;
         }
         .minha-conta-dados .campo { margin-bottom: 10px; }
         .minha-conta-dados .campo label {
@@ -51,7 +59,7 @@
         .minha-conta-cats-titulo { font-size: 1rem; font-weight: 700; color: #2c3e50; margin-bottom: 12px; }
         .lista-categorias {
             background: white; border-radius: 10px; padding: 15px 20px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04); border: 1px solid #ecf0f1;
         }
         .cat-linha {
             display: flex; align-items: center; gap: 8px;
@@ -77,7 +85,7 @@
         .btn-nova-categoria:hover { background: #e0e6e6; border-color: #1abc9c; color: #1abc9c; }
 
         /* MATERIAIS */
-        .materiais-wrap { height: 100%; display: flex; flex-direction: column; background: white; overflow: hidden; }
+        .materiais-wrap { display: flex; flex-direction: column; height: 100%; background: white; }
         .materiais-header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 18px 25px; border-bottom: 1px solid #ecf0f1; flex-shrink: 0;
@@ -132,11 +140,12 @@
             border-radius: 4px; font-size: 0.82rem; font-family: inherit;
         }
         .linha-filtros input:focus { outline: none; border-color: #1abc9c; }
-        .badge-materia {
-            font-size: 0.7rem; background: #f0f3f2; color: #7f8c8d;
-            padding: 2px 8px; border-radius: 10px; font-weight: 600;
-            display: inline-block;
+        .badge-materia, .badge-tipo {
+            font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
+            font-weight: 600; display: inline-block;
         }
+        .badge-materia { background: #f0f3f2; color: #7f8c8d; }
+        .badge-tipo { background: #e8f8f4; color: #16a085; }
         .vazio-tabela { text-align: center; color: #7f8c8d; padding: 40px; font-size: 0.9rem; }
 
         /* MAPA */
@@ -259,6 +268,32 @@
         .dropdown-status .voltar-submenu:hover { background: #f4f7f6; }
 
         /* CONTEÚDO */
+                /* Botão maximizar */
+        .header-conteudo {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px;
+        }
+        .header-conteudo #titulo-subtopico {
+            margin-bottom: 0; border-bottom: none; padding-bottom: 0;
+            flex: 1;
+        }
+        .btn-maximizar {
+            background: white; border: 1px solid #bdc3c7; color: #7f8c8d;
+            border-radius: 6px; width: 34px; height: 34px;
+            cursor: pointer; font-size: 1.1rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.15s; flex-shrink: 0;
+        }
+        .btn-maximizar:hover {
+            background: #1abc9c; border-color: #1abc9c; color: white;
+        }
+
+        /* Modo maximizado */
+        body.conteudo-maximizado .parte-superior { display: none !important; }
+        body.conteudo-maximizado .parte-inferior {
+            flex: 1; border-top: none;
+        }
+
         #titulo-subtopico {
             font-size: 1.25rem; color: #2c3e50; margin-bottom: 15px;
             border-bottom: 2px solid #1abc9c; padding-bottom: 8px;
@@ -318,13 +353,8 @@
         .btn-secondary { background: #ecf0f1; color: #2c3e50; }
         .btn-secondary:hover { background: #d5dbdb; }
 
-        /* =========================================================
-           AGENDA
-           ========================================================= */
-        .agenda-wrap {
-            height: 100%; display: flex; flex-direction: column;
-            background: white; overflow: hidden;
-        }
+        /* AGENDA */
+        .agenda-wrap { height: 100%; display: flex; flex-direction: column; background: white; overflow: hidden; }
         .agenda-header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 14px 22px; border-bottom: 1px solid #ecf0f1;
@@ -338,7 +368,6 @@
         }
         .agenda-views button:hover { background: #d5dbdb; }
         .agenda-views button.ativo { background: #1abc9c; color: white; }
-
         .agenda-nav { display: flex; align-items: center; gap: 8px; }
         .agenda-nav .titulo-periodo {
             font-weight: 700; color: #2c3e50; min-width: 180px;
@@ -350,22 +379,16 @@
             font-size: 0.85rem; font-weight: 600;
         }
         .agenda-nav button:hover { border-color: #1abc9c; color: #1abc9c; }
-
         .agenda-body { flex: 1; overflow: auto; padding: 20px; }
-
-        /* View Mensal */
         .grade-mensal {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            display: grid; grid-template-columns: repeat(7, 1fr);
             grid-auto-rows: minmax(110px, auto);
-            border: 1px solid #ecf0f1; border-radius: 8px;
-            overflow: hidden;
+            border: 1px solid #ecf0f1; border-radius: 8px; overflow: hidden;
         }
         .dia-cabecalho {
             background: #2c3e50; color: white; font-size: 0.75rem;
             text-transform: uppercase; font-weight: 700;
-            text-align: center; padding: 10px;
-            letter-spacing: 0.5px;
+            text-align: center; padding: 10px; letter-spacing: 0.5px;
         }
         .dia-celula {
             border-right: 1px solid #ecf0f1; border-bottom: 1px solid #ecf0f1;
@@ -374,38 +397,26 @@
         }
         .dia-celula.fora-do-mes { background: #fafcfb; color: #bdc3c7; }
         .dia-celula.hoje { background: #e8f8f4; }
-        .dia-numero {
-            font-size: 0.85rem; font-weight: 700; color: #2c3e50;
-            margin-bottom: 4px;
-        }
+        .dia-numero { font-size: 0.85rem; font-weight: 700; color: #2c3e50; margin-bottom: 4px; }
         .dia-celula.fora-do-mes .dia-numero { color: #bdc3c7; }
         .dia-celula.hoje .dia-numero {
-            background: #1abc9c; color: white;
-            border-radius: 50%; width: 24px; height: 24px;
-            display: flex; align-items: center; justify-content: center;
+            background: #1abc9c; color: white; border-radius: 50%;
+            width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
         }
         .evento-mini {
             font-size: 0.7rem; padding: 3px 6px; border-radius: 4px;
             cursor: pointer; color: white; font-weight: 600;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            transition: 0.15s;
         }
         .evento-mini:hover { filter: brightness(1.1); }
         .evento-mini.status-adicionado { background: #95a5a6; }
         .evento-mini.status-em_estudo  { background: #f1c40f; color: #7d6608; }
         .evento-mini.status-concluido  { background: #27ae60; }
-        .mais-eventos {
-            font-size: 0.68rem; color: #7f8c8d; font-weight: 600;
-            padding: 2px 4px; cursor: pointer;
-        }
+        .mais-eventos { font-size: 0.68rem; color: #7f8c8d; font-weight: 600; padding: 2px 4px; cursor: pointer; }
         .mais-eventos:hover { color: #1abc9c; }
-
-        /* View Semanal */
         .grade-semanal {
-            display: grid;
-            grid-template-columns: 60px repeat(7, 1fr);
-            border: 1px solid #ecf0f1; border-radius: 8px;
-            overflow: hidden; background: white;
+            display: grid; grid-template-columns: 60px repeat(7, 1fr);
+            border: 1px solid #ecf0f1; border-radius: 8px; overflow: hidden; background: white;
         }
         .hora-cabecalho, .dia-cabecalho-sem {
             background: #2c3e50; color: white; font-size: 0.72rem;
@@ -428,60 +439,39 @@
             border-radius: 4px; padding: 3px 5px;
             font-size: 0.68rem; color: white; font-weight: 600;
             cursor: pointer; overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-            z-index: 2;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15); z-index: 2;
         }
         .evento-semanal:hover { filter: brightness(1.1); z-index: 3; }
         .evento-semanal.status-adicionado { background: #95a5a6; }
         .evento-semanal.status-em_estudo  { background: #f1c40f; color: #7d6608; }
         .evento-semanal.status-concluido  { background: #27ae60; }
-
-        /* View Lista */
         .lista-eventos { display: flex; flex-direction: column; gap: 12px; }
         .evento-card {
             background: white; border-radius: 10px; padding: 16px 20px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.04);
             display: flex; align-items: center; gap: 16px;
-            border-left: 4px solid #95a5a6; transition: 0.15s;
+            border-left: 4px solid #95a5a6;
         }
-        .evento-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
         .evento-card.status-adicionado { border-left-color: #95a5a6; }
         .evento-card.status-em_estudo  { border-left-color: #f1c40f; }
         .evento-card.status-concluido  { border-left-color: #27ae60; }
         .evento-card .info { flex: 1; }
-        .evento-card .data {
-            font-size: 0.85rem; font-weight: 700; color: #2c3e50;
-            margin-bottom: 4px;
-        }
-        .evento-card .node-nome {
-            font-size: 1rem; font-weight: 600; color: #16a085;
-        }
-        .evento-card .caminho {
-            font-size: 0.78rem; color: #7f8c8d; margin-top: 3px;
-        }
+        .evento-card .data { font-size: 0.85rem; font-weight: 700; color: #2c3e50; margin-bottom: 4px; }
+        .evento-card .node-nome { font-size: 1rem; font-weight: 600; color: #16a085; }
+        .evento-card .caminho { font-size: 0.78rem; color: #7f8c8d; margin-top: 3px; }
         .evento-card .acoes { display: flex; gap: 6px; }
         .evento-card .acoes button {
             background: transparent; border: 1px solid #bdc3c7; color: #7f8c8d;
             border-radius: 4px; width: 32px; height: 32px; cursor: pointer;
             font-size: 0.85rem; padding: 0;
         }
-        .evento-card .acoes button:hover {
-            background: #1abc9c; border-color: #1abc9c; color: white;
-        }
-        .evento-card .acoes button.excluir:hover {
-            background: #e74c3c; border-color: #e74c3c;
-        }
-        .agenda-vazia {
-            text-align: center; color: #7f8c8d; padding: 60px 20px;
-            font-size: 0.95rem;
-        }
-
-        /* Aba Agenda dentro do nó */
+        .evento-card .acoes button:hover { background: #1abc9c; border-color: #1abc9c; color: white; }
+        .evento-card .acoes button.excluir:hover { background: #e74c3c; border-color: #e74c3c; }
+        .agenda-vazia { text-align: center; color: #7f8c8d; padding: 60px 20px; font-size: 0.95rem; }
         .agendamento-linha {
             display: flex; align-items: center; gap: 12px;
             padding: 12px 16px; background: #f9fbfa;
-            border-left: 4px solid #95a5a6; border-radius: 6px;
-            margin-bottom: 8px;
+            border-left: 4px solid #95a5a6; border-radius: 6px; margin-bottom: 8px;
         }
         .agendamento-linha.status-adicionado { border-left-color: #95a5a6; }
         .agendamento-linha.status-em_estudo  { border-left-color: #f1c40f; }
@@ -493,12 +483,8 @@
             border-radius: 4px; width: 26px; height: 26px; cursor: pointer;
             font-size: 0.8rem; padding: 0;
         }
-        .agendamento-linha button:hover {
-            background: #1abc9c; border-color: #1abc9c; color: white;
-        }
-        .agendamento-linha button.excluir:hover {
-            background: #e74c3c; border-color: #e74c3c;
-        }
+        .agendamento-linha button:hover { background: #1abc9c; border-color: #1abc9c; color: white; }
+        .agendamento-linha button.excluir:hover { background: #e74c3c; border-color: #e74c3c; }
     </style>
 </head>
 <body>
@@ -517,16 +503,6 @@
 
         <div class="painel-direito">
             <div class="parte-superior" id="parte-superior">
-                <div class="minha-conta-wrap" id="conta-container" style="display:none;">
-                    <div class="minha-conta-dados">
-                        <div class="campo"><label>Nome</label><div class="valor" id="conta-nome">—</div></div>
-                        <div class="campo"><label>Email</label><div class="valor" id="conta-email">—</div></div>
-                    </div>
-                    <div class="minha-conta-cats-titulo">🏷️ Categorias</div>
-                    <div class="lista-categorias" id="lista-categorias"></div>
-                    <button class="btn-nova-categoria" onclick="adicionarCategoriaVazia()">+ Nova categoria</button>
-                </div>
-
                 <div class="vazio-parte-superior" id="vazio-superior" style="text-align:center; color:#7f8c8d; margin-top:120px;">
                     <h2 style="color:#bdc3c7; font-size:1.3rem;">Nenhum plano selecionado</h2>
                     <p style="margin-top:8px; font-size:0.9rem;">Clique em um plano na lista ou crie um novo.</p>
@@ -542,30 +518,6 @@
 
                 <svg id="mapa-svg" style="display:none;"></svg>
                 <div class="lista-scroll" id="lista-container" style="display:none;"></div>
-
-                <div class="materiais-wrap" id="materiais-container" style="display:none;">
-                    <div class="materiais-header">
-                        <h2>📚 Materiais</h2>
-                        <div class="acoes">
-                            <button class="btn-filtros" id="btn-filtros" onclick="toggleFiltros()">🔍 Filtros</button>
-                            <button class="btn btn-primary" onclick="abrirCriacaoMaterial()">+ Novo Material</button>
-                        </div>
-                    </div>
-                    <div class="tabela-materiais">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th onclick="ordenarPor('nome')" id="th-nome">Nome <span class="seta">▲</span></th>
-                                    <th onclick="ordenarPor('materia_nome')" id="th-materia">Matéria <span class="seta">▲</span></th>
-                                    <th onclick="ordenarPor('url_link')" id="th-link">Link <span class="seta">▲</span></th>
-                                    <th onclick="ordenarPor('url_arquivo')" id="th-arquivo">Arquivo <span class="seta">▲</span></th>
-                                    <th class="sem-ordem">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-materiais"></tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
 
             <div class="parte-inferior" id="parte-inferior">
@@ -574,7 +526,10 @@
                     <p>Selecione um tópico ou subtópico acima para ver o conteúdo.</p>
                 </div>
                 <div id="conteudo-area" style="display:none;">
-                    <h2 id="titulo-subtopico"></h2>
+                    <div class="header-conteudo">
+                        <h2 id="titulo-subtopico"></h2>
+                        <button class="btn-maximizar" id="btn-maximizar" onclick="toggleMaximizar()" title="Maximizar">⛶</button>
+                    </div>
                     <div class="tabs" id="tabs-container"></div>
                     <div id="tab-material" class="tab-content active"></div>
                     <div id="tab-resumo" class="tab-content"></div>
@@ -587,8 +542,50 @@
         </div>
     </div>
 
-    <!-- Container da Agenda (ocupa o painel direito inteiro quando ativo) -->
-    <div id="agenda-container" class="agenda-wrap" style="display:none; position:fixed; top:0; left:150px; right:0; bottom:0; z-index:500;">
+    <!-- OVERLAY: MATERIAIS (ocupa tela toda) -->
+    <div class="overlay-full" id="materiais-container" style="display:none;">
+        <div class="materiais-wrap">
+            <div class="materiais-header">
+                <h2>📚 Materiais</h2>
+                <div class="acoes">
+                    <button class="btn-filtros" id="btn-filtros" onclick="toggleFiltros()">🔍 Filtros</button>
+                    <button class="btn btn-secondary" onclick="abrirModalTipos()">⚙️ Tipos</button>
+                    <button class="btn btn-primary" onclick="abrirCriacaoMaterial()">+ Novo Material</button>
+                </div>
+            </div>
+            <div class="tabela-materiais">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="ordenarPor('nome')" id="th-nome">Nome <span class="seta">▲</span></th>
+                            <th onclick="ordenarPor('materia_nome')" id="th-materia">Matéria <span class="seta">▲</span></th>
+                            <th onclick="ordenarPor('tipo_nome')" id="th-tipo">Tipo <span class="seta">▲</span></th>
+                            <th onclick="ordenarPor('url_link')" id="th-link">Link <span class="seta">▲</span></th>
+                            <th onclick="ordenarPor('url_arquivo')" id="th-arquivo">Arquivo <span class="seta">▲</span></th>
+                            <th class="sem-ordem">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-materiais"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY: MINHA CONTA -->
+    <div class="overlay-full" id="conta-container" style="display:none;">
+        <div class="minha-conta-wrap">
+            <div class="minha-conta-dados">
+                <div class="campo"><label>Nome</label><div class="valor" id="conta-nome">—</div></div>
+                <div class="campo"><label>Email</label><div class="valor" id="conta-email">—</div></div>
+            </div>
+            <div class="minha-conta-cats-titulo">🏷️ Categorias</div>
+            <div class="lista-categorias" id="lista-categorias"></div>
+            <button class="btn-nova-categoria" onclick="adicionarCategoriaVazia()">+ Nova categoria</button>
+        </div>
+    </div>
+
+    <!-- OVERLAY: AGENDA -->
+    <div class="overlay-full agenda-wrap" id="agenda-container" style="display:none;">
         <div class="agenda-header">
             <div class="agenda-views">
                 <button data-view="mensal" class="ativo" onclick="mudarViewAgenda('mensal')">🗓️ Mensal</button>
@@ -606,6 +603,7 @@
         <div class="agenda-body" id="agenda-body"></div>
     </div>
 
+    <!-- MODAIS -->
     <div id="modal" class="modal" style="display:none;">
         <div class="modal-box">
             <h3 id="modal-titulo"></h3>
@@ -650,6 +648,17 @@
         </div>
     </div>
 
+    <div id="modal-tipos" class="modal" style="display:none;">
+        <div class="modal-box">
+            <h3>⚙️ Tipos de Material</h3>
+            <div class="lista-categorias" id="modal-tipos-lista"></div>
+            <button class="btn-nova-categoria" onclick="adicionarTipoVazio()">+ Novo tipo</button>
+            <div class="modal-acoes">
+                <button class="btn btn-primary" onclick="fecharModalTipos()">Pronto</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-material" class="modal" style="display:none;">
         <div class="modal-box">
             <h3 id="modal-material-titulo">Novo Material</h3>
@@ -680,8 +689,9 @@
         let USUARIO = null;
         let ARVORE = [];
         let CATEGORIAS = [];
+        let TIPOS_MATERIAL = [];
         let MATERIAIS = [];
-        let MATERIAIS_FILTROS = { nome: '', materia_nome: '', url_link: '', url_arquivo: '' };
+        let MATERIAIS_FILTROS = { nome: '', materia_nome: '', tipo_nome: '', url_link: '', url_arquivo: '' };
         let MATERIAIS_ORDEM = { campo: 'criado_em', direcao: 'desc' };
         let MATERIAIS_EDITANDO = null;
         let PLANO_ATUAL = null;
@@ -692,17 +702,17 @@
         let MODO = 'mapa';
         let EDITANDO = null;
         let CATEGORIA_VOLTAR_PARA_MODAL = false;
+        let TIPO_VOLTAR_PARA_MODAL = false;
         let NOS_EXPANDIDOS = new Set();
         let svg, g, zoomBehavior, treeLayout, root;
         let i = 0;
 
         // Agenda
         let AGENDA_VIEW = 'mensal';
-        let AGENDA_DATA_REF = new Date();   // data de referência (mês ou semana atual)
+        let AGENDA_DATA_REF = new Date();
         let AGENDAMENTOS = [];
-        let AGENDAMENTO_EDITANDO = null;    // id quando edita
-        let AGENDAMENTO_CONTEXTO = null;    // { tipo: 'geral' } ou { tipo: 'no', noTipo, noId }
-        let AGENDA_TODOS_EVENTOS = [];      // cache local com os eventos
+        let AGENDAMENTO_EDITANDO = null;
+        let AGENDAMENTO_CONTEXTO = null;
 
         const CORES_DISPONIVEIS = [
             { hex: '#8e44ad', nome: 'Roxo' },
@@ -722,6 +732,7 @@
 
             atualizarDadosContaNaTela();
             await carregarCategorias();
+            await carregarTiposMaterial();
             await carregarArvore();
             await carregarMateriais();
 
@@ -766,6 +777,13 @@
             renderizarListaCategoriasModal();
         }
 
+        async function carregarTiposMaterial() {
+            const resp = await apiFetch('/api/estudos/tipos-material');
+            if (!resp) return;
+            TIPOS_MATERIAL = await resp.json();
+            renderizarListaTiposModal();
+        }
+
         async function carregarMateriais() {
             const resp = await apiFetch('/api/estudos/materiais');
             if (!resp) return;
@@ -778,6 +796,7 @@
         // ==========================================
         function mudarModo(novoModo) {
             MODO = novoModo;
+            desmaximizar();   // 👈 fecha o maximizado ao trocar de modo
             ['mapa', 'lista', 'materiais', 'agenda', 'conta'].forEach(m => {
                 const btn = document.getElementById(`btn-modo-${m}`);
                 if (btn) btn.classList.toggle('ativo', m === novoModo);
@@ -794,18 +813,24 @@
             const controles = document.getElementById('mapa-controles');
             const agendaEl = document.getElementById('agenda-container');
 
+            // Esconde todos os overlays
+            contaEl.style.display = 'none';
+            materiaisEl.style.display = 'none';
+            agendaEl.style.display = 'none';
+
+            // Estado padrão do painel direito
             vazio.style.display = 'none';
             svgEl.style.display = 'none';
             listaEl.style.display = 'none';
-            contaEl.style.display = 'none';
-            materiaisEl.style.display = 'none';
             controles.style.display = 'none';
-            agendaEl.style.display = 'none';
 
-            if (MODO === 'conta') { contaEl.style.display = 'block'; return; }
+            if (MODO === 'conta') {
+                contaEl.style.display = 'block';
+                return;
+            }
 
             if (MODO === 'materiais') {
-                materiaisEl.style.display = 'flex';
+                materiaisEl.style.display = 'block';
                 renderizarTabelaMateriais();
                 return;
             }
@@ -828,7 +853,7 @@
         }
 
         // ==========================================
-        // MATERIAIS (tabela)
+        // MATERIAIS
         // ==========================================
         function toggleFiltros() {
             document.getElementById('btn-filtros').classList.toggle('ativo');
@@ -847,7 +872,7 @@
             renderizarTabelaMateriais();
         }
         function atualizarSeta(campo) {
-            const mapId = { nome: 'nome', materia_nome: 'materia', url_link: 'link', url_arquivo: 'arquivo', criado_em: 'nome' };
+            const mapId = { nome: 'nome', materia_nome: 'materia', tipo_nome: 'tipo', url_link: 'link', url_arquivo: 'arquivo', criado_em: 'nome' };
             const th = document.getElementById(`th-${mapId[campo] || 'nome'}`);
             if (!th) return;
             document.querySelectorAll('.tabela-materiais thead th').forEach(t => t.classList.remove('ordenado'));
@@ -858,6 +883,7 @@
             const f = MATERIAIS_FILTROS;
             if (f.nome && !(m.nome || '').toLowerCase().includes(f.nome.toLowerCase())) return false;
             if (f.materia_nome && !(m.materia_nome || '').toLowerCase().includes(f.materia_nome.toLowerCase())) return false;
+            if (f.tipo_nome && !(m.tipo_nome || '').toLowerCase().includes(f.tipo_nome.toLowerCase())) return false;
             if (f.url_link && !(m.url_link || '').toLowerCase().includes(f.url_link.toLowerCase())) return false;
             if (f.url_arquivo && !(m.url_arquivo || '').toLowerCase().includes(f.url_arquivo.toLowerCase())) return false;
             return true;
@@ -882,13 +908,14 @@
                 html += `<tr class="linha-filtros ativa">
                     <td><input placeholder="Filtrar nome..." value="${escapeAtributo(MATERIAIS_FILTROS.nome)}" oninput="setFiltro('nome', this.value)"></td>
                     <td><input placeholder="Filtrar matéria..." value="${escapeAtributo(MATERIAIS_FILTROS.materia_nome)}" oninput="setFiltro('materia_nome', this.value)"></td>
+                    <td><input placeholder="Filtrar tipo..." value="${escapeAtributo(MATERIAIS_FILTROS.tipo_nome)}" oninput="setFiltro('tipo_nome', this.value)"></td>
                     <td><input placeholder="Filtrar link..." value="${escapeAtributo(MATERIAIS_FILTROS.url_link)}" oninput="setFiltro('url_link', this.value)"></td>
                     <td><input placeholder="Filtrar arquivo..." value="${escapeAtributo(MATERIAIS_FILTROS.url_arquivo)}" oninput="setFiltro('url_arquivo', this.value)"></td>
                     <td></td>
                 </tr>`;
             }
             if (!visiveis.length) {
-                html += `<tr><td colspan="5" class="vazio-tabela">Nenhum material ${MATERIAIS.length ? 'com esse filtro' : 'ainda'}.</td></tr>`;
+                html += `<tr><td colspan="6" class="vazio-tabela">Nenhum material ${MATERIAIS.length ? 'com esse filtro' : 'ainda'}.</td></tr>`;
             } else {
                 visiveis.forEach(m => {
                     const linkCell = m.url_link
@@ -900,9 +927,13 @@
                     const matCell = m.materia_nome
                         ? `<span class="badge-materia">${escapeHtml(m.materia_nome)}</span>`
                         : '<span style="color:#bdc3c7;">—</span>';
+                    const tipoCell = m.tipo_nome
+                        ? `<span class="badge-tipo">${escapeHtml(m.tipo_nome)}</span>`
+                        : '<span style="color:#bdc3c7;">—</span>';
                     html += `<tr onclick="abrirMaterial(${m.id})">
                         <td class="col-nome">${escapeHtml(m.nome)}</td>
                         <td>${matCell}</td>
+                        <td>${tipoCell}</td>
                         <td class="col-link">${linkCell}</td>
                         <td class="col-arquivo">${arqCell}</td>
                         <td class="col-acoes">
@@ -919,7 +950,7 @@
             renderizarTabelaMateriais();
             setTimeout(() => {
                 const inputs = document.querySelectorAll('.linha-filtros input');
-                const index = { nome: 0, materia_nome: 1, url_link: 2, url_arquivo: 3 }[campo];
+                const index = { nome: 0, materia_nome: 1, tipo_nome: 2, url_link: 3, url_arquivo: 4 }[campo];
                 if (inputs[index]) {
                     inputs[index].focus();
                     inputs[index].setSelectionRange(inputs[index].value.length, inputs[index].value.length);
@@ -947,14 +978,17 @@
             document.getElementById('modal-material').style.display = 'flex';
         }
         function renderizarFormMaterial(m) {
-            let campos = `<label>Nome</label><input type="text" id="mat-nome" value="${m ? escapeAtributo(m.nome) : ''}" placeholder="Ex: Livro de Redes Neurais" required>`;
+            let campos = `<label>Nome</label><input type="text" id="mat-nome" value="${m ? escapeAtributo(m.nome) : ''}" placeholder="Ex: Clean Code" required>`;
             campos += `<label>Matéria (opcional)</label><select id="mat-materia">${optionsMaterias(m ? m.materia_id : null)}</select>`;
+            campos += `<label>Tipo (opcional)</label><select id="mat-tipo">${optionsTipos(m ? m.tipo_id : null)}</select>`;
             campos += `<label>Link (opcional)</label><input type="url" id="mat-link" value="${m && m.url_link ? escapeAtributo(m.url_link) : ''}" placeholder="https://...">`;
             campos += `<label>Arquivo (opcional)</label><input type="file" id="mat-arquivo" accept=".pdf,.docx,.jpg,.jpeg,.png">`;
             if (m && m.url_arquivo) {
                 campos += `<p style="font-size:0.8rem; color:#7f8c8d; margin-top:6px;">Arquivo atual: <a href="${escapeHtml(m.url_arquivo)}" target="_blank" rel="noopener">📎 abrir</a> (enviar novo substitui)</p>`;
             }
             document.getElementById('modal-material-campos').innerHTML = campos;
+            const selTipo = document.getElementById('mat-tipo');
+            if (selTipo) selTipo.addEventListener('change', onTipoChange);
         }
         function optionsMaterias(selecionadaId) {
             let html = `<option value="">— Sem matéria —</option>`;
@@ -966,6 +1000,22 @@
             });
             return html;
         }
+        function optionsTipos(selecionadoId) {
+            let html = `<option value="">— Sem tipo —</option>`;
+            TIPOS_MATERIAL.forEach(t => {
+                const sel = (String(t.id) === String(selecionadoId)) ? 'selected' : '';
+                html += `<option value="${t.id}" ${sel}>${escapeHtml(t.nome)}</option>`;
+            });
+            html += `<option value="__novo__">➕ Criar novo tipo</option>`;
+            return html;
+        }
+        function onTipoChange(e) {
+            if (e.target.value === '__novo__') {
+                e.target.value = '';
+                TIPO_VOLTAR_PARA_MODAL = true;
+                abrirModalTipos();
+            }
+        }
         function fecharModalMaterial() {
             document.getElementById('modal-material').style.display = 'none';
             MATERIAIS_EDITANDO = null;
@@ -973,12 +1023,14 @@
         async function confirmarModalMaterial() {
             const nome = document.getElementById('mat-nome').value.trim();
             const materiaId = document.getElementById('mat-materia').value;
+            const tipoId = document.getElementById('mat-tipo').value;
             const link = document.getElementById('mat-link').value.trim();
             const arquivo = document.getElementById('mat-arquivo').files[0];
             if (!nome) { mostrarToast('Nome obrigatório', 'error'); return; }
             const fd = new FormData();
             fd.append('nome', nome);
-            if (materiaId) fd.append('materia_id', materiaId);
+            fd.append('materia_id', materiaId || '');
+            fd.append('tipo_id', tipoId || '');
             if (link) fd.append('url_link', link);
             if (arquivo) fd.append('arquivo', arquivo);
             let resp;
@@ -1009,7 +1061,86 @@
         }
 
         // ==========================================
-        // LISTA
+        // TIPOS DE MATERIAL
+        // ==========================================
+        function abrirModalTipos() {
+            renderizarListaTiposModal();
+            document.getElementById('modal-tipos').style.display = 'flex';
+        }
+        function fecharModalTipos() {
+            document.getElementById('modal-tipos').style.display = 'none';
+            if (TIPO_VOLTAR_PARA_MODAL) {
+                const selTipo = document.getElementById('mat-tipo');
+                if (selTipo) {
+                    const valorAtual = selTipo.value;
+                    selTipo.innerHTML = optionsTipos(valorAtual);
+                    if (TIPOS_MATERIAL.length) {
+                        selTipo.value = TIPOS_MATERIAL[TIPOS_MATERIAL.length - 1].id;
+                    }
+                }
+                TIPO_VOLTAR_PARA_MODAL = false;
+            }
+        }
+        function renderizarListaTiposModal() {
+            const container = document.getElementById('modal-tipos-lista');
+            if (!container) return;
+            container.innerHTML = TIPOS_MATERIAL.map(t => `
+                <div class="cat-linha">
+                    <input type="text" value="${escapeAtributo(t.nome)}" data-id="${t.id}"
+                        onblur="salvarTipoInline(${t.id}, this.value)"
+                        onkeydown="if(event.key==='Enter') this.blur();">
+                    <button class="btn-acao excluir" onclick="excluirTipo(${t.id})" title="Excluir">✕</button>
+                </div>
+            `).join('') || '<p style="color:#7f8c8d; font-size:0.9rem;">Nenhum tipo ainda.</p>';
+        }
+        async function salvarTipoInline(id, novoNome) {
+            const nome = (novoNome || '').trim();
+            if (!nome) { await carregarTiposMaterial(); return; }
+            const atual = TIPOS_MATERIAL.find(t => t.id === id);
+            if (atual && atual.nome === nome) return;
+            const resp = await apiFetch(`/api/estudos/tipos-material/${id}`, {
+                method: 'PATCH', body: JSON.stringify({ nome })
+            });
+            if (resp && resp.ok) {
+                mostrarToast('Tipo atualizado', 'success');
+                await carregarTiposMaterial();
+                await carregarMateriais();
+            } else if (resp) {
+                const err = await resp.json();
+                mostrarToast(err.detail || 'Erro', 'error');
+                await carregarTiposMaterial();
+            }
+        }
+        async function adicionarTipoVazio() {
+            const resp = await apiFetch('/api/estudos/tipos-material', {
+                method: 'POST', body: JSON.stringify({ nome: 'Novo tipo' })
+            });
+            if (resp && resp.ok) {
+                await carregarTiposMaterial();
+                setTimeout(() => {
+                    const inputs = document.querySelectorAll('#modal-tipos-lista input');
+                    if (inputs.length) { const ultimo = inputs[inputs.length - 1]; ultimo.focus(); ultimo.select(); }
+                }, 100);
+            } else if (resp) {
+                const err = await resp.json();
+                mostrarToast(err.detail || 'Erro', 'error');
+            }
+        }
+        async function excluirTipo(id) {
+            if (!confirm('Excluir este tipo? Os materiais que usam ele vão ficar sem tipo.')) return;
+            const resp = await apiFetch(`/api/estudos/tipos-material/${id}`, { method: 'DELETE' });
+            if (resp && resp.ok) {
+                mostrarToast('Tipo excluído', 'success');
+                await carregarTiposMaterial();
+                await carregarMateriais();
+            } else if (resp) {
+                const err = await resp.json();
+                mostrarToast(err.detail || 'Erro', 'error');
+            }
+        }
+
+        // ==========================================
+        // LISTA (modo lista)
         // ==========================================
         function renderizarLista() {
             const container = document.getElementById('lista-container');
@@ -1018,7 +1149,6 @@
             if (!html) html = '<p style="text-align:center; color:#7f8c8d; margin-top:60px;">Nenhum plano ainda.</p>';
             container.innerHTML = html;
         }
-
         function construirHtmlListaPlano(plano) {
             const noAtual = NO_ATUAL;
             let html = `<div class="lista-plano">
@@ -1030,7 +1160,6 @@
                     <button class="btn-add-small" onclick="abrirCriacao('materia', ${plano.id})" title="Nova matéria">+</button>
                     <button class="btn-del" onclick="deletarItem('planos', ${plano.id})" title="Excluir plano">✕</button>
                 </div>`;
-
             plano.materias.forEach(mat => {
                 html += `<div class="lista-materia">
                     <div class="lista-item">
@@ -1041,7 +1170,6 @@
                         <button class="btn-add-small" onclick="abrirCriacao('topico', ${mat.id})" title="Novo tópico">+</button>
                         <button class="btn-del" onclick="deletarItem('materias', ${mat.id})" title="Excluir matéria">✕</button>
                     </div>`;
-
                 mat.topicos.forEach(top => {
                     const nomeTop = `${top.numero || ''} ${top.nome}`.trim();
                     const ativoTop = noAtual && noAtual.tipo === 'topico' && noAtual.id === top.id ? 'ativo' : '';
@@ -1054,7 +1182,6 @@
                             <button class="btn-menu-small" onclick="event.stopPropagation(); abrirDropdown(event, 'topico', ${top.id}, '${top.status || 'adicionado'}')" title="Mais opções">⋯</button>
                             <button class="btn-add-small" onclick="event.stopPropagation(); abrirCriacao('subtopico', ${top.id})" title="Novo subtópico">+</button>
                         </div>`;
-
                     top.subtopicos.forEach(sub => {
                         const nomeSub = `${sub.numero || ''} ${sub.nome}`.trim();
                         const ativoSub = noAtual && noAtual.tipo === 'subtopico' && noAtual.id === sub.id ? 'ativo' : '';
@@ -1075,7 +1202,6 @@
             html += `</div>`;
             return html;
         }
-
         function badgeCat(cat) {
             if (!cat) return '';
             return `<span class="badge-categoria">${escapeHtml(cat.nome)}</span>`;
@@ -1094,7 +1220,6 @@
             if (MODO === 'conta' || MODO === 'materiais' || MODO === 'agenda') mudarModo('mapa');
             else renderizarModoAtual();
         }
-
         function selecionarNo(tipo, id) {
             const ref = encontrarNo(tipo, id);
             if (!ref) return;
@@ -1103,7 +1228,6 @@
             if (MODO === 'lista') renderizarLista();
             if (MODO === 'mapa') atualizarSelecaoVisual();
         }
-
         function encontrarNo(tipo, id) {
             for (const plano of ARVORE)
                 for (const mat of plano.materias)
@@ -1119,9 +1243,7 @@
         // ==========================================
         // MAPA (D3)
         // ==========================================
-        function corDaRaiz() {
-            return (USUARIO && USUARIO.cor_raiz) || '#8e44ad';
-        }
+        function corDaRaiz() { return (USUARIO && USUARIO.cor_raiz) || '#8e44ad'; }
         function calcularPorcentagemGeral() {
             let total = 0, concluidos = 0;
             ARVORE.forEach(plano => {
@@ -1169,27 +1291,21 @@
                     }))
                 }))
             };
-
             const svgEl = document.getElementById('mapa-svg');
             d3.select(svgEl).selectAll('*').remove();
             const width = svgEl.clientWidth || 900;
             const height = svgEl.clientHeight || 400;
-
             svg = d3.select(svgEl).attr('viewBox', [0, 0, width, height]);
             g = svg.append('g');
-
             zoomBehavior = d3.zoom().scaleExtent([0.2, 3])
                 .on('zoom', (event) => g.attr('transform', event.transform));
             svg.call(zoomBehavior);
-
             treeLayout = d3.tree()
                 .size([height - 80, width - 200])
                 .separation((a, b) => (a.parent === b.parent ? 1.2 : 1.6));
-
             root = d3.hierarchy(hierarquia, d => d.children);
             root.x0 = height / 2;
             root.y0 = 0;
-
             root.each(d => {
                 if (d.children && d.depth >= 1) {
                     if (!NOS_EXPANDIDOS.has(d.data.id)) {
@@ -1232,7 +1348,6 @@
             const nodes = treeData.descendants();
             const links = treeData.links();
             nodes.forEach(d => { d.y = d.depth * 220; });
-
             const link = g.selectAll('path.link').data(links, d => d.target.id);
             const linkEnter = link.enter().insert('path', 'g')
                 .attr('class', 'link')
@@ -1240,7 +1355,6 @@
             link.merge(linkEnter).transition().duration(duration).attr('d', d => diagonal(d.source, d.target));
             link.exit().transition().duration(duration)
                 .attr('d', () => { const o = { x: source.x, y: source.y }; return diagonal(o, o); }).remove();
-
             const node = g.selectAll('g.node').data(nodes, d => d.id || (d.id = ++i));
             const nodeEnter = node.enter().append('g')
                 .attr('class', d => {
@@ -1257,13 +1371,12 @@
                     if (d.data.tipo === 'raiz') abrirDropdownRaiz(event);
                     else abrirDropdown(event, d.data.tipo, d.data.refId, d.data.status || 'adicionado');
                 });
-
             nodeEnter.append('circle').attr('r', 1e-6);
             nodeEnter.each(function(d) {
                 const linhas = quebrarTexto(d.data.nome, d.data.tipo === 'raiz' ? 18 : 16, 3);
                 const textoEl = d3.select(this).append('text')
                     .attr('class', 'nome-no').attr('text-anchor', 'middle').attr('x', 0);
-                const dyInicial = d.data.tipo === 'raiz' ? '-2.4em' : '-4em';
+                const dyInicial = d.data.tipo === 'raiz' ? '-2.4em' : '-3.5em';
                 linhas.forEach((linha, idx) => {
                     textoEl.append('tspan').attr('x', 0).attr('dy', idx === 0 ? dyInicial : '1.15em').text(linha);
                 });
@@ -1271,7 +1384,6 @@
             nodeEnter.append('text')
                 .attr('class', 'porcentagem-no').attr('text-anchor', 'middle').attr('dy', '.35em')
                 .text(d => `${d.data.porcentagem || 0}%`);
-
             const nodeUpdate = node.merge(nodeEnter);
             nodeUpdate.transition().duration(duration).attr('transform', d => `translate(${d.y},${d.x})`);
             nodeUpdate.select('circle')
@@ -1333,14 +1445,17 @@
         }
 
         // ==========================================
-        // CONTEÚDO DO NÓ (tópico ou subtópico)
+        // CONTEÚDO DO NÓ
         // ==========================================
         function renderizarConteudoDoNo() {
             if (!NO_ATUAL || !NO_ATUAL.ref) {
                 document.getElementById('bem-vindo-conteudo').style.display = 'block';
                 document.getElementById('conteudo-area').style.display = 'none';
+                desmaximizar();
                 return;
             }
+            desmaximizar();
+            
             const no = NO_ATUAL.ref;
             document.getElementById('bem-vindo-conteudo').style.display = 'none';
             document.getElementById('conteudo-area').style.display = 'block';
@@ -1387,7 +1502,6 @@
                 container.innerHTML = html;
             });
         }
-
         function renderizarTabSubtopicos(topico) {
             const container = document.getElementById('tab-subtopicos');
             let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -1415,7 +1529,6 @@
             }
             container.innerHTML = html;
         }
-
         function renderizarCorpoConteudo(c, tipo) {
             let partes = [];
             if (c.texto) partes.push(`<p>${escapeHtml(c.texto).replace(/\n/g, '<br>')}</p>`);
@@ -1423,7 +1536,6 @@
             if (c.url_arquivo) partes.push(`<a href="${escapeHtml(c.url_arquivo)}" target="_blank" rel="noopener">📎 Baixar arquivo anexado</a>`);
             return partes.join('') || '<em>Sem conteúdo.</em>';
         }
-
         function rotuloTipo(tipo) { return { material: 'Material', resumo: 'Resumo', link: 'Link', pdf: 'PDF' }[tipo]; }
 
         // ==========================================
@@ -1439,16 +1551,14 @@
         }
 
         // ==========================================
-        // DROPDOWNS (contexto)
+        // DROPDOWNS
         // ==========================================
         let dropdownAberto = null;
-
         function abrirDropdown(event, tipo, id, statusAtual) {
             event.stopPropagation();
             fecharDropdown();
             const dropdown = document.createElement('div');
             dropdown.className = 'dropdown-status';
-
             const filhos = {
                 plano: { label: '➕ Nova matéria', acao: () => abrirCriacao('materia', id) },
                 materia: { label: '➕ Novo tópico', acao: () => abrirCriacao('topico', id) },
@@ -1462,7 +1572,6 @@
                 dropdown.appendChild(add);
                 dropdown.appendChild(sep());
             }
-
             if (tipo === 'topico' || tipo === 'subtopico') {
                 const opcoes = [
                     { valor: 'adicionado', label: 'Adicionado', cor: '⚪' },
@@ -1479,50 +1588,41 @@
                 });
                 dropdown.appendChild(sep());
             }
-
             const recurso = tipo === 'plano' ? 'planos' : (tipo === 'materia' ? 'materias' : (tipo === 'topico' ? 'topicos' : 'subtopicos'));
-
             const itemEditar = document.createElement('div');
             itemEditar.className = 'item';
             itemEditar.innerHTML = '✏️ Editar';
             itemEditar.onclick = (e) => { e.stopPropagation(); fecharDropdown(); editarItem(recurso, id); };
             dropdown.appendChild(itemEditar);
-
             const itemExcluir = document.createElement('div');
             itemExcluir.className = 'item perigo';
             itemExcluir.innerHTML = '✕ Excluir';
             itemExcluir.onclick = (e) => { e.stopPropagation(); fecharDropdown(); excluirItem(recurso, id); };
             dropdown.appendChild(itemExcluir);
-
             document.body.appendChild(dropdown);
             posicionarDropdown(dropdown, event.target);
             dropdownAberto = dropdown;
         }
-
         function abrirDropdownRaiz(event) {
             event.stopPropagation();
             fecharDropdown();
             const dropdown = document.createElement('div');
             dropdown.className = 'dropdown-status';
-
             const itemNovoPlano = document.createElement('div');
             itemNovoPlano.className = 'item add';
             itemNovoPlano.innerHTML = '➕ Novo plano';
             itemNovoPlano.onclick = (e) => { e.stopPropagation(); fecharDropdown(); criarPlano(); };
             dropdown.appendChild(itemNovoPlano);
             dropdown.appendChild(sep());
-
             const itemCor = document.createElement('div');
             itemCor.className = 'item';
             itemCor.innerHTML = '🎨 Escolher cor';
             itemCor.onclick = (e) => { e.stopPropagation(); mostrarSubmenuCores(dropdown); };
             dropdown.appendChild(itemCor);
-
             document.body.appendChild(dropdown);
             posicionarDropdown(dropdown, event.target);
             dropdownAberto = dropdown;
         }
-
         function mostrarSubmenuCores(dropdownPai) {
             dropdownPai.innerHTML = '';
             const voltar = document.createElement('div');
@@ -1536,7 +1636,6 @@
             };
             dropdownPai.appendChild(voltar);
             dropdownPai.appendChild(sep());
-
             const grid = document.createElement('div');
             grid.className = 'cores-grid';
             const corAtual = corDaRaiz();
@@ -1550,7 +1649,6 @@
             });
             dropdownPai.appendChild(grid);
         }
-
         async function trocarCorRaiz(novaCor) {
             const resp = await apiFetch('/api/auth/me/cor', {
                 method: 'PATCH', body: JSON.stringify({ cor_raiz: novaCor })
@@ -1586,7 +1684,6 @@
         function fecharDropdown() {
             if (dropdownAberto) { dropdownAberto.remove(); dropdownAberto = null; }
         }
-
         async function mudarStatus(tipo, id, novoStatus) {
             fecharDropdown();
             const recurso = tipo === 'topico' ? 'topicos' : 'subtopicos';
@@ -1596,7 +1693,6 @@
             if (resp && resp.ok) { mostrarToast('Status atualizado', 'success'); await carregarArvore(); }
             else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
         }
-
         async function excluirItem(recurso, id) {
             if (!confirm('Tem certeza que quer excluir?')) return;
             const resp = await apiFetch(`/api/estudos/${recurso}/${id}`, { method: 'DELETE' });
@@ -1613,7 +1709,6 @@
         // CRIAÇÃO
         // ==========================================
         function criarPlano() { abrirCriacao('plano', null); }
-
         function abrirCriacao(tipo, paiId) {
             TIPO_CRIACAO = tipo;
             CONTEXTO_CRIACAO = paiId;
@@ -1671,9 +1766,7 @@
             else if (TIPO_CRIACAO === 'materia') { url = `/api/estudos/planos/${CONTEXTO_CRIACAO}/materias`; body = { nome, categoria_id }; }
             else if (TIPO_CRIACAO === 'topico') { url = `/api/estudos/materias/${CONTEXTO_CRIACAO}/topicos`; body = { nome, numero: numero || null, categoria_id }; }
             else if (TIPO_CRIACAO === 'subtopico') { url = `/api/estudos/topicos/${CONTEXTO_CRIACAO}/subtopicos`; body = { nome, numero: numero || null, categoria_id }; }
-
             const resp = await apiFetch(url, { method: 'POST', body: JSON.stringify(body) });
-
             if (resp && resp.ok) {
                 const criado = await resp.json();
                 mostrarToast('Criado!', 'success');
@@ -1870,52 +1963,34 @@
         // ==========================================
         // AGENDA
         // ==========================================
-
         async function carregarAgenda() {
             const resp = await apiFetch('/api/estudos/agenda');
             if (!resp) return;
             AGENDAMENTOS = await resp.json();
         }
-
         function mudarViewAgenda(view) {
             AGENDA_VIEW = view;
             document.querySelectorAll('.agenda-views button').forEach(b => {
                 b.classList.toggle('ativo', b.dataset.view === view);
             });
-            // O botão "Hoje" e as setas ficam escondidos na view lista
             document.getElementById('agenda-nav').style.display = view === 'lista' ? 'none' : 'flex';
             renderizarAgenda();
         }
-
         function agendaAnterior() {
-            if (AGENDA_VIEW === 'mensal') {
-                AGENDA_DATA_REF = new Date(AGENDA_DATA_REF.getFullYear(), AGENDA_DATA_REF.getMonth() - 1, 1);
-            } else if (AGENDA_VIEW === 'semanal') {
-                const d = new Date(AGENDA_DATA_REF);
-                d.setDate(d.getDate() - 7);
-                AGENDA_DATA_REF = d;
-            }
+            if (AGENDA_VIEW === 'mensal') AGENDA_DATA_REF = new Date(AGENDA_DATA_REF.getFullYear(), AGENDA_DATA_REF.getMonth() - 1, 1);
+            else if (AGENDA_VIEW === 'semanal') { const d = new Date(AGENDA_DATA_REF); d.setDate(d.getDate() - 7); AGENDA_DATA_REF = d; }
             renderizarAgenda();
         }
         function agendaProximo() {
-            if (AGENDA_VIEW === 'mensal') {
-                AGENDA_DATA_REF = new Date(AGENDA_DATA_REF.getFullYear(), AGENDA_DATA_REF.getMonth() + 1, 1);
-            } else if (AGENDA_VIEW === 'semanal') {
-                const d = new Date(AGENDA_DATA_REF);
-                d.setDate(d.getDate() + 7);
-                AGENDA_DATA_REF = d;
-            }
+            if (AGENDA_VIEW === 'mensal') AGENDA_DATA_REF = new Date(AGENDA_DATA_REF.getFullYear(), AGENDA_DATA_REF.getMonth() + 1, 1);
+            else if (AGENDA_VIEW === 'semanal') { const d = new Date(AGENDA_DATA_REF); d.setDate(d.getDate() + 7); AGENDA_DATA_REF = d; }
             renderizarAgenda();
         }
-        function agendaHoje() {
-            AGENDA_DATA_REF = new Date();
-            renderizarAgenda();
-        }
+        function agendaHoje() { AGENDA_DATA_REF = new Date(); renderizarAgenda(); }
 
         function renderizarAgenda() {
             const body = document.getElementById('agenda-body');
             const titulo = document.getElementById('agenda-titulo-periodo');
-
             if (AGENDA_VIEW === 'mensal') {
                 titulo.innerText = AGENDA_DATA_REF.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
                 body.innerHTML = construirAgendaMensal();
@@ -1927,24 +2002,20 @@
                 body.innerHTML = construirAgendaLista();
             }
         }
-
         function construirTituloSemana() {
             const { inicio, fim } = calcularRangeSemana(AGENDA_DATA_REF);
             return `${inicio.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} – ${fim.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
         }
-
         function calcularRangeSemana(data) {
             const d = new Date(data);
-            const diaSemana = d.getDay(); // 0=dom
             const inicio = new Date(d);
-            inicio.setDate(d.getDate() - diaSemana);
+            inicio.setDate(d.getDate() - d.getDay());
             inicio.setHours(0, 0, 0, 0);
             const fim = new Date(inicio);
             fim.setDate(inicio.getDate() + 6);
             fim.setHours(23, 59, 59, 999);
             return { inicio, fim };
         }
-
         function agendamentosNoDia(data) {
             const inicioDia = new Date(data); inicioDia.setHours(0, 0, 0, 0);
             const fimDia = new Date(data); fimDia.setHours(23, 59, 59, 999);
@@ -1953,14 +2024,10 @@
                 return dt >= inicioDia && dt <= fimDia;
             }).sort((a, b) => new Date(a.data_inicio) - new Date(b.data_inicio));
         }
-
         function statusDoAgendamento(a) {
-            // Procura o status do nó na árvore
             const no = a.topico_id ? encontrarNo('topico', a.topico_id) : encontrarNo('subtopico', a.subtopico_id);
             return no ? no.status : 'adicionado';
         }
-
-        // ---- Mensal ----
         function construirAgendaMensal() {
             const ano = AGENDA_DATA_REF.getFullYear();
             const mes = AGENDA_DATA_REF.getMonth();
@@ -1968,27 +2035,21 @@
             const diaSemanaInicio = primeiro.getDay();
             const diasNoMes = new Date(ano, mes + 1, 0).getDate();
             const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-
             let html = '<div class="grade-mensal">';
-            // Cabeçalho
             ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].forEach(d => {
                 html += `<div class="dia-cabecalho">${d}</div>`;
             });
-            // Células
             const totalCelulas = Math.ceil((diaSemanaInicio + diasNoMes) / 7) * 7;
             for (let i = 0; i < totalCelulas; i++) {
                 const diaNumero = i - diaSemanaInicio + 1;
                 const data = new Date(ano, mes, diaNumero);
                 const foraDoMes = diaNumero < 1 || diaNumero > diasNoMes;
                 const isHoje = !foraDoMes && data.getTime() === hoje.getTime();
-
                 const eventos = foraDoMes ? [] : agendamentosNoDia(data);
                 const visiveis = eventos.slice(0, 3);
-
                 let cls = 'dia-celula';
                 if (foraDoMes) cls += ' fora-do-mes';
                 if (isHoje) cls += ' hoje';
-
                 html += `<div class="${cls}">`;
                 html += `<div class="dia-numero">${data.getDate()}</div>`;
                 visiveis.forEach(ev => {
@@ -1997,33 +2058,18 @@
                     html += `<div class="evento-mini status-${status}" onclick="irParaAgendamento(${ev.id})" title="${escapeAtributo(ev.node_nome)}">${hora} ${escapeHtml(ev.node_nome)}</div>`;
                 });
                 if (eventos.length > 3) {
-                    html += `<div class="mais-eventos" onclick="irParaListaDoDia('${data.toISOString()}')">+${eventos.length - 3} mais</div>`;
+                    html += `<div class="mais-eventos">+${eventos.length - 3} mais</div>`;
                 }
                 html += `</div>`;
             }
             html += '</div>';
             return html;
         }
-
-        function irParaListaDoDia(iso) {
-            mudarViewAgenda('lista');
-            // Filtra só o dia
-            const data = new Date(iso);
-            const nomeDia = data.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
-            setTimeout(() => {
-                mostrarToast(`Eventos de ${nomeDia}`, 'info');
-            }, 100);
-        }
-
-        // ---- Semanal ----
         function construirAgendaSemanal() {
             const { inicio } = calcularRangeSemana(AGENDA_DATA_REF);
-            const HORA_INI = 6;
-            const HORA_FIM = 23;
+            const HORA_INI = 6, HORA_FIM = 23;
             const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-
             let html = '<div class="grade-semanal">';
-            // Cabeçalho: célula vazia + 7 dias
             html += `<div class="hora-cabecalho"></div>`;
             for (let d = 0; d < 7; d++) {
                 const dia = new Date(inicio); dia.setDate(inicio.getDate() + d);
@@ -2031,23 +2077,18 @@
                 const diaLabel = dia.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' });
                 html += `<div class="dia-cabecalho-sem" style="${isHoje ? 'background:#1abc9c;' : ''}">${diaLabel}</div>`;
             }
-            // Linhas de hora
             for (let h = HORA_INI; h <= HORA_FIM; h++) {
                 html += `<div class="hora-label">${String(h).padStart(2, '0')}:00</div>`;
                 for (let d = 0; d < 7; d++) {
                     const dia = new Date(inicio); dia.setDate(inicio.getDate() + d);
                     const isHoje = dia.getTime() === hoje.getTime();
-                    const eventosNessaHora = agendamentosNoDia(dia).filter(a => {
-                        const dt = new Date(a.data_inicio);
-                        return dt.getHours() === h;
-                    });
+                    const eventosNessaHora = agendamentosNoDia(dia).filter(a => new Date(a.data_inicio).getHours() === h);
                     html += `<div class="hora-celula ${isHoje ? 'hoje' : ''}">`;
                     eventosNessaHora.forEach(ev => {
                         const status = statusDoAgendamento(ev);
                         const dtIni = new Date(ev.data_inicio);
                         const dtFim = new Date(ev.data_fim);
                         const duracaoMin = (dtFim - dtIni) / 60000;
-                        // Altura: 48px por hora => 48/60 por minuto
                         const topPx = (dtIni.getMinutes() / 60) * 48;
                         const altPx = (duracaoMin / 60) * 48 - 2;
                         const hora = dtIni.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -2061,16 +2102,11 @@
             html += '</div>';
             return html;
         }
-
-        // ---- Lista ----
         function construirAgendaLista() {
             const agora = new Date();
             const futuros = AGENDAMENTOS.filter(a => new Date(a.data_fim) >= agora);
-            if (!futuros.length) {
-                return '<div class="agenda-vazia">📭 Nenhum evento futuro.</div>';
-            }
+            if (!futuros.length) return '<div class="agenda-vazia">📭 Nenhum evento futuro.</div>';
             futuros.sort((a, b) => new Date(a.data_inicio) - new Date(b.data_inicio));
-
             let html = '<div class="lista-eventos">';
             futuros.forEach(ev => {
                 const status = statusDoAgendamento(ev);
@@ -2082,7 +2118,6 @@
                 const caminhoStr = ev.caminho ? [
                     ev.caminho.plano_nome, ev.caminho.materia_nome, ev.caminho.topico_nome
                 ].filter(Boolean).join(' › ') : '';
-
                 html += `<div class="evento-card status-${status}">
                     <div class="info">
                         <div class="data">${dataFormatada} · ${horaIni}–${horaFim}</div>
@@ -2098,38 +2133,26 @@
             html += '</div>';
             return html;
         }
-
         function irParaAgendamento(agendamentoId) {
             const ev = AGENDAMENTOS.find(a => a.id === agendamentoId);
             if (!ev) return;
-
-            // Abre o plano no modo mapa
             const planoId = ev.caminho?.plano_id;
             if (planoId) {
-                // Garante que os ancestrais estejam expandidos
                 NOS_EXPANDIDOS.add(`plano-${planoId}`);
                 if (ev.caminho.materia_id) NOS_EXPANDIDOS.add(`mat-${ev.caminho.materia_id}`);
                 if (ev.caminho.topico_id) NOS_EXPANDIDOS.add(`top-${ev.caminho.topico_id}`);
                 if (ev.topico_id) NOS_EXPANDIDOS.add(`top-${ev.topico_id}`);
             }
-
             mudarModo('mapa');
-
-            // Seleciona o nó
             if (ev.topico_id) selecionarNo('topico', ev.topico_id);
             else if (ev.subtopico_id) selecionarNo('subtopico', ev.subtopico_id);
-
-            // Rola pra parte inferior
             setTimeout(() => {
                 document.getElementById('conteudo-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 200);
         }
-
-        // ---- Aba Agenda dentro do nó ----
         function renderizarTabAgendaNo(no, tipo) {
             const container = document.getElementById('tab-agenda');
             const agendamentos = no.horarios || [];
-
             let html = '';
             if (!agendamentos.length) {
                 html = `<p style="color:#7f8c8d;">Nenhum agendamento ainda.</p>`;
@@ -2141,11 +2164,8 @@
                     const dataFormatada = dtIni.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
                     const horaIni = dtIni.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     const horaFim = dtFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
                     html += `<div class="agendamento-linha status-${status}">
-                        <div class="info">
-                            <strong>${dataFormatada}</strong> · ${horaIni} às ${horaFim}
-                        </div>
+                        <div class="info"><strong>${dataFormatada}</strong> · ${horaIni} às ${horaFim}</div>
                         <button onclick="editarAgendamento(${ev.id})" title="Editar">✏️</button>
                         <button class="excluir" onclick="excluirAgendamento(${ev.id})" title="Excluir">✕</button>
                     </div>`;
@@ -2154,17 +2174,13 @@
             html += `<button class="tab-add-btn" onclick="abrirCriacaoAgendamentoDoNo()">+ Novo agendamento</button>`;
             container.innerHTML = html;
         }
-
-        // ---- Modal de agendamento ----
         function abrirCriacaoAgendamento() {
-            // Vindo da Agenda geral — precisa escolher o nó
             AGENDAMENTO_EDITANDO = null;
             AGENDAMENTO_CONTEXTO = { tipo: 'geral' };
             document.getElementById('modal-agendamento-titulo').innerText = 'Novo Agendamento';
             renderizarFormAgendamento(null, 'geral');
             document.getElementById('modal-agendamento').style.display = 'flex';
         }
-
         function abrirCriacaoAgendamentoDoNo() {
             if (!NO_ATUAL) return;
             AGENDAMENTO_EDITANDO = null;
@@ -2173,7 +2189,6 @@
             renderizarFormAgendamento(null, 'no');
             document.getElementById('modal-agendamento').style.display = 'flex';
         }
-
         function editarAgendamento(id) {
             const ev = AGENDAMENTOS.find(a => a.id === id);
             if (!ev) return;
@@ -2183,12 +2198,9 @@
             renderizarFormAgendamento(ev, 'geral');
             document.getElementById('modal-agendamento').style.display = 'flex';
         }
-
         function renderizarFormAgendamento(ev, contexto) {
             let campos = '';
-
             if (contexto === 'geral') {
-                // Dropdown de nó
                 let opts = '<option value="">— Escolha um tópico ou subtópico —</option>';
                 ARVORE.forEach(plano => {
                     plano.materias.forEach(mat => {
@@ -2208,35 +2220,26 @@
                 });
                 campos += `<label>Estudar</label><select id="ag-no">${opts}</select>`;
             } else {
-                // Já vem com o nó atual
                 const nomeNo = `${NO_ATUAL.ref.numero || ''} ${NO_ATUAL.ref.nome}`.trim();
                 campos += `<label>Estudando</label><input type="text" value="${escapeAtributo(nomeNo)}" disabled>`;
             }
-
-            // Data
             const hojeISO = new Date().toISOString().slice(0, 10);
             const dataVal = ev ? new Date(ev.data_inicio).toISOString().slice(0, 10) : hojeISO;
             campos += `<label>Data</label><input type="date" id="ag-data" value="${dataVal}">`;
-
-            // Hora início/fim
             const horaIniVal = ev ? new Date(ev.data_inicio).toTimeString().slice(0, 5) : '14:00';
             const horaFimVal = ev ? new Date(ev.data_fim).toTimeString().slice(0, 5) : '15:00';
             campos += `<label>Hora de início</label><input type="time" id="ag-inicio" value="${horaIniVal}">`;
             campos += `<label>Hora de fim</label><input type="time" id="ag-fim" value="${horaFimVal}">`;
-
             document.getElementById('modal-agendamento-campos').innerHTML = campos;
         }
-
         function fecharModalAgendamento() {
             document.getElementById('modal-agendamento').style.display = 'none';
             AGENDAMENTO_EDITANDO = null;
             AGENDAMENTO_CONTEXTO = null;
         }
-
         async function confirmarModalAgendamento() {
             const contexto = AGENDAMENTO_CONTEXTO;
             let topico_id = null, subtopico_id = null;
-
             if (contexto.tipo === 'geral') {
                 const noVal = document.getElementById('ag-no').value;
                 if (!noVal) { mostrarToast('Escolha um nó', 'error'); return; }
@@ -2247,20 +2250,15 @@
                 if (contexto.noTipo === 'topico') topico_id = contexto.noId;
                 else subtopico_id = contexto.noId;
             }
-
             const data = document.getElementById('ag-data').value;
             const horaIni = document.getElementById('ag-inicio').value;
             const horaFim = document.getElementById('ag-fim').value;
-
             if (!data || !horaIni || !horaFim) { mostrarToast('Preencha todos os campos', 'error'); return; }
             if (horaFim <= horaIni) { mostrarToast('Hora de fim deve ser depois do início', 'error'); return; }
-
             const data_inicio = `${data}T${horaIni}:00`;
             const data_fim = `${data}T${horaFim}:00`;
-
             const body = { data_inicio, data_fim };
             if (AGENDAMENTO_EDITANDO) {
-                // Edição: só data/hora
                 const resp = await apiFetch(`/api/estudos/agendamentos/${AGENDAMENTO_EDITANDO}`, {
                     method: 'PATCH', body: JSON.stringify(body)
                 });
@@ -2270,30 +2268,20 @@
                     await carregarArvore();
                     await carregarAgenda();
                     if (MODO === 'agenda') renderizarAgenda();
-                } else if (resp) {
-                    const err = await resp.json();
-                    mostrarToast(err.detail || 'Erro', 'error');
-                }
+                } else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
             } else {
-                // Criação
                 if (topico_id) body.topico_id = topico_id;
                 else body.subtopico_id = subtopico_id;
-                const resp = await apiFetch('/api/estudos/agendamentos', {
-                    method: 'POST', body: JSON.stringify(body)
-                });
+                const resp = await apiFetch('/api/estudos/agendamentos', { method: 'POST', body: JSON.stringify(body) });
                 if (resp && resp.ok) {
                     mostrarToast('Agendamento criado!', 'success');
                     fecharModalAgendamento();
                     await carregarArvore();
                     await carregarAgenda();
                     if (MODO === 'agenda') renderizarAgenda();
-                } else if (resp) {
-                    const err = await resp.json();
-                    mostrarToast(err.detail || 'Erro', 'error');
-                }
+                } else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
             }
         }
-
         async function excluirAgendamento(id) {
             if (!confirm('Excluir este agendamento?')) return;
             const resp = await apiFetch(`/api/estudos/agendamentos/${id}`, { method: 'DELETE' });
@@ -2302,10 +2290,7 @@
                 await carregarArvore();
                 await carregarAgenda();
                 if (MODO === 'agenda') renderizarAgenda();
-            } else if (resp) {
-                const err = await resp.json();
-                mostrarToast(err.detail || 'Erro', 'error');
-            }
+            } else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
         }
 
         // ==========================================
@@ -2321,7 +2306,6 @@
             return String(texto).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
-
         window.addEventListener('resize', () => {
             if (MODO === 'mapa') {
                 const svgEl = document.getElementById('mapa-svg');
@@ -2331,6 +2315,30 @@
                 }
             }
         });
+
+                // ==========================================
+        // MAXIMIZAR CONTEÚDO
+        // ==========================================
+        function toggleMaximizar() {
+            document.body.classList.toggle('conteudo-maximizado');
+            const btn = document.getElementById('btn-maximizar');
+            if (document.body.classList.contains('conteudo-maximizado')) {
+                btn.innerText = '⛉';
+                btn.title = 'Restaurar';
+            } else {
+                btn.innerText = '⛶';
+                btn.title = 'Maximizar';
+            }
+        }
+
+        function desmaximizar() {
+            document.body.classList.remove('conteudo-maximizado');
+            const btn = document.getElementById('btn-maximizar');
+            if (btn) {
+                btn.innerText = '⛶';
+                btn.title = 'Maximizar';
+            }
+        }
     </script>
 </body>
 </html>
