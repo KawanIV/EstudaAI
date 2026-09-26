@@ -46,6 +46,14 @@ class TipoMaterial(Base):
 
     usuario = relationship("Usuario")
 
+class TipoAtividade(Base):
+    __tablename__ = "tipos_atividade"
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    nome = Column(String(80), nullable=False)
+    criado_em = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("Usuario")
 # ==========================================================
 # HIERARQUIA DE ESTUDOS
 # ==========================================================
@@ -123,11 +131,59 @@ class Material(Base):
     nome = Column(String(200), nullable=False)
     url_arquivo = Column(String(500))
     url_link = Column(String(500))
+    ultima_pagina = Column(Integer, default=1) 
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
 
     usuario = relationship("Usuario")
     materia = relationship("Materia")
     tipo = relationship("TipoMaterial", foreign_keys=[tipo_id])
+
+class Atividade(Base):
+    __tablename__ = "atividades"
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+
+    # Vínculo opcional — só um dos quatro pode estar preenchido
+    plano_id = Column(Integer, ForeignKey("planos_estudo.id", ondelete="SET NULL"), nullable=True)
+    materia_id = Column(Integer, ForeignKey("materias.id", ondelete="SET NULL"), nullable=True)
+    topico_id = Column(Integer, ForeignKey("topicos.id", ondelete="SET NULL"), nullable=True)
+    subtopico_id = Column(Integer, ForeignKey("subtopicos.id", ondelete="SET NULL"), nullable=True)
+
+    tipo_id = Column(Integer, ForeignKey("tipos_atividade.id", ondelete="SET NULL"), nullable=True)
+
+    nome = Column(String(200), nullable=False)
+    descricao = Column(Text)
+    data_entrega = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(20), default="pendente", nullable=False)  # pendente | em_andamento | feito
+    criado_em = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("Usuario")
+    tipo = relationship("TipoAtividade", foreign_keys=[tipo_id])
+    anexos = relationship("AtividadeAnexo", back_populates="atividade", cascade="all, delete-orphan")
+
+class AtividadeAnexo(Base):
+    __tablename__ = "atividade_anexos"
+    id = Column(Integer, primary_key=True, index=True)
+    atividade_id = Column(Integer, ForeignKey("atividades.id", ondelete="CASCADE"), nullable=False, index=True)
+    nome_original = Column(String(300), nullable=False)
+    url_arquivo = Column(String(500), nullable=False)
+    criado_em = Column(DateTime(timezone=True), server_default=func.now())
+
+    atividade = relationship("Atividade", back_populates="anexos")
+
+class Marcacao(Base):
+    __tablename__ = "marcacoes"
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True)
+    material_id = Column(Integer, ForeignKey("materiais.id", ondelete="CASCADE"), nullable=False, index=True)
+    tipo = Column(String(20), nullable=False)  # grifo, retangulo, seta, bookmark, nota
+    pagina = Column(Integer, nullable=False)
+    cor = Column(String(20), nullable=True)   # ex: "#fff3a0"
+    dados = Column(Text, nullable=False)      # JSON com as coordenadas/estrutura
+    criado_em = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("Usuario")
+    material = relationship("Material")
 
 # ==========================================================
 # CONTEÚDOS

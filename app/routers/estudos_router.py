@@ -11,8 +11,19 @@ router = APIRouter(prefix="/api/estudos", tags=["Estudos"])
 UPLOAD_DIR = "uploads"
 
 STATUS_VALIDOS = {"adicionado", "em_estudo", "concluido"}
-EXTENSOES_PERMITIDAS = {".pdf", ".docx", ".jpg", ".jpeg", ".png"}
-
+EXTENSOES_PERMITIDAS = {
+    # Documentos
+    ".pdf", ".docx", ".doc", ".txt", ".md", ".odt", ".rtf", ".csv", ".xlsx", ".xls", ".pptx", ".ppt",
+    # Imagens
+    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp",
+    # Códigos
+    ".py", ".ipynb", ".js", ".ts", ".html", ".css", ".java", ".c", ".cpp", ".cs", ".go", ".rs", ".rb", ".php", ".sh", ".sql", ".json", ".xml", ".yaml", ".yml",
+    # Compactados
+    ".zip", ".rar", ".7z", ".tar", ".gz",
+    # Outros
+    ".tex", ".epub", ".mp3", ".mp4", ".mov", ".wav",
+}
+STATUS_ATIVIDADE_VALIDOS = {"pendente", "em_andamento", "feito"}
 
 # ==========================================================
 # HELPERS
@@ -40,6 +51,49 @@ def verificar_categoria_do_usuario(categoria_id: int, usuario_id: int, db: Sessi
         raise HTTPException(status_code=404, detail="Categoria não encontrada")
     return cat
 
+def apagar_arquivos_conteudos(conteudos: list, db: Session):
+    """
+    Apaga do disco os arquivos físicos de uma lista de conteúdos.
+    Chamado antes de deletar pais (plano/matéria/tópico/subtópico).
+    Não commita nada no banco — só apaga arquivo.
+    """
+    for c in conteudos:
+        if c.url_arquivo:
+            caminho = c.url_arquivo.lstrip("/")
+            if os.path.exists(caminho):
+                try:
+                    os.remove(caminho)
+                except OSError:
+                    pass  # Se falhar (permissão, etc), ignora — o banco segue
+
+
+def apagar_todos_conteudos_do_subtopico(sub: models.Subtopico, db: Session):
+    """Apaga os arquivos de todos os conteúdos de um subtópico."""
+    apagar_arquivos_conteudos(sub.conteudos, db)
+
+
+def apagar_todos_conteudos_do_topico(top: models.Topico, db: Session):
+    """Apaga os arquivos dos conteúdos do tópico + de todos os seus subtópicos."""
+    apagar_arquivos_conteudos(top.conteudos, db)
+    for sub in top.subtopicos:
+        apagar_arquivos_conteudos(sub.conteudos, db)
+
+
+def apagar_todos_conteudos_da_materia(mat: models.Materia, db: Session):
+    """Apaga os arquivos dos conteúdos da matéria + tópicos + subtópicos."""
+    for top in mat.topicos:
+        apagar_arquivos_conteudos(top.conteudos, db)
+        for sub in top.subtopicos:
+            apagar_arquivos_conteudos(sub.conteudos, db)
+
+
+def apagar_todos_conteudos_do_plano(plano: models.PlanoEstudo, db: Session):
+    """Apaga os arquivos dos conteúdos do plano inteiro (todos os níveis)."""
+    for mat in plano.materias:
+        for top in mat.topicos:
+            apagar_arquivos_conteudos(top.conteudos, db)
+            for sub in top.subtopicos:
+                apagar_arquivos_conteudos(sub.conteudos, db)
 
 def calcular_status_agregado(statuses_filhos: list[str]) -> tuple[str, int]:
     if not statuses_filhos:
@@ -348,6 +402,8 @@ def editar_plano(plano_id: int, dados: schemas.PlanoUpdate, usuario=Depends(get_
 @router.delete("/planos/{plano_id}")
 def deletar_plano(plano_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     plano = verificar_dono_plano(plano_id, usuario.id, db)
+    # Apaga arquivos físicos antes de deletar no banco
+    apagar_todos_conteudos_do_plano(plano, db)
     db.delete(plano)
     db.commit()
     return {"mensagem": "Plano deletado"}
@@ -396,6 +452,7 @@ def deletar_materia(materia_id: int, usuario=Depends(get_usuario_atual), db: Ses
     ).first()
     if not materia:
         raise HTTPException(status_code=404, detail="Matéria não encontrada")
+    apagar_todos_conteudos_da_materia(materia, db)
     db.delete(materia)
     db.commit()
     return {"mensagem": "Matéria deletada"}
@@ -467,6 +524,7 @@ def deletar_topico(topico_id: int, usuario=Depends(get_usuario_atual), db: Sessi
     ).first()
     if not topico:
         raise HTTPException(status_code=404, detail="Tópico não encontrado")
+    apagar_todos_conteudos_do_topico(topico, db)
     db.delete(topico)
     db.commit()
     return {"mensagem": "Tópico deletado"}
@@ -538,6 +596,7 @@ def deletar_subtopico(subtopico_id: int, usuario=Depends(get_usuario_atual), db:
     ).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Subtópico não encontrado")
+    apagar_todos_conteudos_do_subtopico(sub, db)
     db.delete(sub)
     db.commit()
     return {"mensagem": "Subtópico deletado"}
@@ -642,6 +701,73 @@ def deletar_conteudo(conteudo_id: int, usuario=Depends(get_usuario_atual), db: S
     db.commit()
     return {"mensagem": "Conteúdo deletado"}
 
+@router.patch("/conteudos/{conteudo_id}")
+def editar_conteudo(
+    conteudo_id: int,
+    titulo: str = Form(None),
+    texto: str = Form(None),
+    url_link: str = Form(None),
+    arquivo: UploadFile = File(None),
+    remover_arquivo: str = Form(None),
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    conteudo = db.query(models.Conteudo).filter(models.Conteudo.id == conteudo_id).first()
+    if not conteudo:
+        raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
+
+    # Valida que é do usuário
+    dono_id = None
+    if conteudo.topico_id:
+        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
+            models.Topico.id == conteudo.topico_id
+        ).scalar()
+    elif conteudo.subtopico_id:
+        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).join(models.Subtopico).filter(
+            models.Subtopico.id == conteudo.subtopico_id
+        ).scalar()
+
+    if dono_id != usuario.id:
+        raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
+
+    # Atualiza campos de texto (só se vieram)
+    if titulo is not None:
+        conteudo.titulo = titulo.strip() or None
+    if texto is not None:
+        conteudo.texto = texto.strip() or None
+    if url_link is not None:
+        conteudo.url_link = url_link.strip() or None
+
+    # Remoção de arquivo (flag booleana em string "true"/"1")
+    if remover_arquivo and remover_arquivo.lower() in ("true", "1", "sim"):
+        if conteudo.url_arquivo:
+            antigo = conteudo.url_arquivo.lstrip("/")
+            if os.path.exists(antigo):
+                os.remove(antigo)
+        conteudo.url_arquivo = None
+
+    # Novo arquivo substitui o antigo
+    if arquivo and arquivo.filename:
+        ext = os.path.splitext(arquivo.filename)[1].lower()
+        if ext not in EXTENSOES_PERMITIDAS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Extensão {ext} não permitida. Use: {', '.join(sorted(EXTENSOES_PERMITIDAS))}"
+            )
+        if conteudo.url_arquivo:
+            antigo = conteudo.url_arquivo.lstrip("/")
+            if os.path.exists(antigo):
+                os.remove(antigo)
+        nome_unico = f"{uuid.uuid4()}_{arquivo.filename}"
+        caminho = os.path.join(UPLOAD_DIR, nome_unico)
+        with open(caminho, "wb") as f:
+            f.write(arquivo.file.read())
+        conteudo.url_arquivo = f"/uploads/{nome_unico}"
+
+    db.commit()
+    db.refresh(conteudo)
+    return conteudo
+
 # ==========================================================
 # MATERIAIS (biblioteca pessoal)
 # ==========================================================
@@ -662,6 +788,7 @@ def listar_materiais(usuario=Depends(get_usuario_atual), db: Session = Depends(g
             "materia_nome": m.materia.nome if m.materia else None,
             "tipo_id": m.tipo_id,
             "tipo_nome": m.tipo.nome if m.tipo else None,
+            "ultima_pagina": m.ultima_pagina or 1,
             "criado_em": m.criado_em.isoformat() if m.criado_em else None,
         }
         for m in materiais
@@ -820,11 +947,347 @@ def deletar_material(material_id: int, usuario=Depends(get_usuario_atual), db: S
     if material.url_arquivo:
         caminho = material.url_arquivo.lstrip("/")
         if os.path.exists(caminho):
-            os.remove(caminho)
+            try:
+                os.remove(caminho)
+            except OSError:
+                pass
 
     db.delete(material)
     db.commit()
     return {"mensagem": "Material deletado"}
+
+# ==========================================================
+# TIPOS DE ATIVIDADE
+# ==========================================================
+
+def serializar_tipo_atividade(t):
+    if t is None: return None
+    return {"id": t.id, "nome": t.nome}
+
+
+def verificar_tipo_atividade_do_usuario(tipo_id: int, usuario_id: int, db: Session):
+    if tipo_id is None:
+        return None
+    t = db.query(models.TipoAtividade).filter(
+        models.TipoAtividade.id == tipo_id,
+        models.TipoAtividade.usuario_id == usuario_id
+    ).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Tipo de atividade não encontrado")
+    return t
+
+
+@router.get("/tipos-atividade")
+def listar_tipos_atividade(usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    tipos = db.query(models.TipoAtividade).filter(
+        models.TipoAtividade.usuario_id == usuario.id
+    ).order_by(models.TipoAtividade.nome.asc()).all()
+
+    if not tipos:
+        padrao = ["Trabalho", "Prova", "Projeto", "Resumo", "Lista de Exercícios"]
+        for nome in padrao:
+            db.add(models.TipoAtividade(usuario_id=usuario.id, nome=nome))
+        db.commit()
+        tipos = db.query(models.TipoAtividade).filter(
+            models.TipoAtividade.usuario_id == usuario.id
+        ).order_by(models.TipoAtividade.nome.asc()).all()
+
+    return [serializar_tipo_atividade(t) for t in tipos]
+
+
+@router.post("/tipos-atividade")
+def criar_tipo_atividade(dados: schemas.TipoAtividadeCreate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    nome = dados.nome.strip()
+    if not nome:
+        raise HTTPException(status_code=400, detail="Nome não pode ser vazio")
+    existe = db.query(models.TipoAtividade).filter(
+        models.TipoAtividade.usuario_id == usuario.id,
+        models.TipoAtividade.nome == nome
+    ).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Já existe um tipo com esse nome")
+    t = models.TipoAtividade(usuario_id=usuario.id, nome=nome)
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return serializar_tipo_atividade(t)
+
+
+@router.patch("/tipos-atividade/{tipo_id}")
+def editar_tipo_atividade(tipo_id: int, dados: schemas.TipoAtividadeUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    t = verificar_tipo_atividade_do_usuario(tipo_id, usuario.id, db)
+    nome = dados.nome.strip()
+    if not nome:
+        raise HTTPException(status_code=400, detail="Nome não pode ser vazio")
+    existe = db.query(models.TipoAtividade).filter(
+        models.TipoAtividade.usuario_id == usuario.id,
+        models.TipoAtividade.nome == nome,
+        models.TipoAtividade.id != tipo_id
+    ).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Já existe outro tipo com esse nome")
+    t.nome = nome
+    db.commit()
+    db.refresh(t)
+    return serializar_tipo_atividade(t)
+
+
+@router.delete("/tipos-atividade/{tipo_id}")
+def deletar_tipo_atividade(tipo_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    t = verificar_tipo_atividade_do_usuario(tipo_id, usuario.id, db)
+    db.delete(t)
+    db.commit()
+    return {"mensagem": "Tipo de atividade deletado"}
+
+
+# ==========================================================
+# ATIVIDADES
+# ==========================================================
+
+def _parse_data_entrega(s):
+    """Aceita ISO 8601, retorna datetime UTC aware ou None."""
+    if not s or not s.strip():
+        return None
+    return _parse_datetime(s)
+
+
+def serializar_atividade(a: models.Atividade, db: Session):
+    """Retorna atividade + info do nó vinculado (pra mostrar caminho)."""
+    caminho = {}
+    node_nome = None
+    node_tipo = None
+
+    if a.plano_id:
+        p = db.query(models.PlanoEstudo).filter(models.PlanoEstudo.id == a.plano_id).first()
+        if p:
+            node_nome = p.nome
+            node_tipo = "plano"
+            caminho = {"plano_id": p.id, "plano_nome": p.nome}
+    elif a.materia_id:
+        m = db.query(models.Materia).filter(models.Materia.id == a.materia_id).first()
+        if m:
+            p = db.query(models.PlanoEstudo).filter(models.PlanoEstudo.id == m.plano_id).first()
+            node_nome = m.nome
+            node_tipo = "materia"
+            caminho = {
+                "plano_id": p.id if p else None, "plano_nome": p.nome if p else None,
+                "materia_id": m.id, "materia_nome": m.nome,
+            }
+    elif a.topico_id:
+        t = db.query(models.Topico).filter(models.Topico.id == a.topico_id).first()
+        if t:
+            m = db.query(models.Materia).filter(models.Materia.id == t.materia_id).first()
+            p = db.query(models.PlanoEstudo).filter(models.PlanoEstudo.id == m.plano_id).first() if m else None
+            node_nome = f"{t.numero or ''} {t.nome}".strip()
+            node_tipo = "topico"
+            caminho = {
+                "plano_id": p.id if p else None, "plano_nome": p.nome if p else None,
+                "materia_id": m.id if m else None, "materia_nome": m.nome if m else None,
+                "topico_id": t.id, "topico_nome": node_nome,
+            }
+    elif a.subtopico_id:
+        s = db.query(models.Subtopico).filter(models.Subtopico.id == a.subtopico_id).first()
+        if s:
+            t = db.query(models.Topico).filter(models.Topico.id == s.topico_id).first()
+            m = db.query(models.Materia).filter(models.Materia.id == t.materia_id).first() if t else None
+            p = db.query(models.PlanoEstudo).filter(models.PlanoEstudo.id == m.plano_id).first() if m else None
+            node_nome = f"{s.numero or ''} {s.nome}".strip()
+            node_tipo = "subtopico"
+            caminho = {
+                "plano_id": p.id if p else None, "plano_nome": p.nome if p else None,
+                "materia_id": m.id if m else None, "materia_nome": m.nome if m else None,
+                "topico_id": t.id if t else None, "topico_nome": f"{t.numero or ''} {t.nome}".strip() if t else None,
+                "subtopico_id": s.id, "subtopico_nome": node_nome,
+            }
+
+    return {
+        "id": a.id,
+        "nome": a.nome,
+        "descricao": a.descricao,
+        "data_entrega": a.data_entrega.isoformat() if a.data_entrega else None,
+        "status": a.status,
+        "tipo": serializar_tipo_atividade(a.tipo),
+        "plano_id": a.plano_id,
+        "materia_id": a.materia_id,
+        "topico_id": a.topico_id,
+        "subtopico_id": a.subtopico_id,
+        "node_nome": node_nome,
+        "node_tipo": node_tipo,
+        "caminho": caminho,
+        "anexos": [
+            {
+                "id": an.id,
+                "nome_original": an.nome_original,
+                "url_arquivo": an.url_arquivo,
+            } for an in a.anexos
+        ],
+        "criado_em": a.criado_em.isoformat() if a.criado_em else None,
+    }
+
+
+def _verificar_vinculo_atividade(dados, usuario_id, db):
+    """Valida que um dos IDs veio E que pertence ao usuário. Retorna dict com os campos limpos."""
+    ids = {
+        "plano_id": getattr(dados, "plano_id", None),
+        "materia_id": getattr(dados, "materia_id", None),
+        "topico_id": getattr(dados, "topico_id", None),
+        "subtopico_id": getattr(dados, "subtopico_id", None),
+    }
+    preenchidos = {k: v for k, v in ids.items() if v is not None}
+    if len(preenchidos) > 1:
+        raise HTTPException(status_code=400, detail="Só pode vincular a um nó: plano, matéria, tópico ou subtópico")
+
+    if "plano_id" in preenchidos:
+        p = db.query(models.PlanoEstudo).filter(
+            models.PlanoEstudo.id == preenchidos["plano_id"],
+            models.PlanoEstudo.usuario_id == usuario_id
+        ).first()
+        if not p: raise HTTPException(status_code=404, detail="Plano não encontrado")
+    elif "materia_id" in preenchidos:
+        m = db.query(models.Materia).join(models.PlanoEstudo).filter(
+            models.Materia.id == preenchidos["materia_id"],
+            models.PlanoEstudo.usuario_id == usuario_id
+        ).first()
+        if not m: raise HTTPException(status_code=404, detail="Matéria não encontrada")
+    elif "topico_id" in preenchidos:
+        t = db.query(models.Topico).join(models.Materia).join(models.PlanoEstudo).filter(
+            models.Topico.id == preenchidos["topico_id"],
+            models.PlanoEstudo.usuario_id == usuario_id
+        ).first()
+        if not t: raise HTTPException(status_code=404, detail="Tópico não encontrado")
+    elif "subtopico_id" in preenchidos:
+        s = db.query(models.Subtopico).join(models.Topico).join(models.Materia).join(models.PlanoEstudo).filter(
+            models.Subtopico.id == preenchidos["subtopico_id"],
+            models.PlanoEstudo.usuario_id == usuario_id
+        ).first()
+        if not s: raise HTTPException(status_code=404, detail="Subtópico não encontrado")
+
+    return ids
+
+
+@router.get("/atividades")
+def listar_atividades(usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    atividades = db.query(models.Atividade).filter(
+        models.Atividade.usuario_id == usuario.id
+    ).order_by(models.Atividade.data_entrega.asc().nullslast()).all()
+
+    return [serializar_atividade(a, db) for a in atividades]
+
+
+@router.post("/atividades")
+def criar_atividade(dados: schemas.AtividadeCreate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    nome = (dados.nome or "").strip()
+    if not nome:
+        raise HTTPException(status_code=400, detail="Nome é obrigatório")
+
+    if dados.tipo_id is not None:
+        verificar_tipo_atividade_do_usuario(dados.tipo_id, usuario.id, db)
+
+    ids = _verificar_vinculo_atividade(dados, usuario.id, db)
+
+    data_entrega = _parse_data_entrega(dados.data_entrega)
+
+    a = models.Atividade(
+        usuario_id=usuario.id,
+        nome=nome,
+        descricao=dados.descricao,
+        data_entrega=data_entrega,
+        tipo_id=dados.tipo_id,
+        plano_id=ids["plano_id"],
+        materia_id=ids["materia_id"],
+        topico_id=ids["topico_id"],
+        subtopico_id=ids["subtopico_id"],
+        status="pendente",
+    )
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+    return serializar_atividade(a, db)
+
+
+@router.patch("/atividades/{atividade_id}")
+def editar_atividade(atividade_id: int, dados: schemas.AtividadeUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    a = db.query(models.Atividade).filter(
+        models.Atividade.id == atividade_id,
+        models.Atividade.usuario_id == usuario.id
+    ).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Atividade não encontrada")
+
+    if dados.nome is not None:
+        nome = dados.nome.strip()
+        if not nome:
+            raise HTTPException(status_code=400, detail="Nome não pode ser vazio")
+        a.nome = nome
+
+    if dados.descricao is not None:
+        a.descricao = dados.descricao or None
+
+    if dados.data_entrega is not None:
+        a.data_entrega = _parse_data_entrega(dados.data_entrega)
+
+    if dados.tipo_id is not None:
+        if dados.tipo_id == 0:
+            a.tipo_id = None
+        else:
+            verificar_tipo_atividade_do_usuario(dados.tipo_id, usuario.id, db)
+            a.tipo_id = dados.tipo_id
+
+    # Vínculo: se algum ID foi passado, valida
+    if any([dados.plano_id is not None, dados.materia_id is not None,
+            dados.topico_id is not None, dados.subtopico_id is not None]):
+        # Zera todos e reaplica
+        a.plano_id = None
+        a.materia_id = None
+        a.topico_id = None
+        a.subtopico_id = None
+        ids = _verificar_vinculo_atividade(dados, usuario.id, db)
+        a.plano_id = ids["plano_id"]
+        a.materia_id = ids["materia_id"]
+        a.topico_id = ids["topico_id"]
+        a.subtopico_id = ids["subtopico_id"]
+
+    db.commit()
+    db.refresh(a)
+    return serializar_atividade(a, db)
+
+
+@router.patch("/atividades/{atividade_id}/status")
+def mudar_status_atividade(atividade_id: int, dados: schemas.AtividadeStatusUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    if dados.status not in STATUS_ATIVIDADE_VALIDOS:
+        raise HTTPException(status_code=400, detail=f"Status inválido. Use: {STATUS_ATIVIDADE_VALIDOS}")
+    a = db.query(models.Atividade).filter(
+        models.Atividade.id == atividade_id,
+        models.Atividade.usuario_id == usuario.id
+    ).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Atividade não encontrada")
+    a.status = dados.status
+    db.commit()
+    db.refresh(a)
+    return serializar_atividade(a, db)
+
+@router.delete("/atividades/{atividade_id}")
+def deletar_atividade(atividade_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    a = db.query(models.Atividade).filter(
+        models.Atividade.id == atividade_id,
+        models.Atividade.usuario_id == usuario.id
+    ).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Atividade não encontrada")
+
+    # Apaga todos os arquivos físicos dos anexos
+    for an in a.anexos:
+        caminho = an.url_arquivo.lstrip("/")
+        if os.path.exists(caminho):
+            try:
+                os.remove(caminho)
+            except OSError:
+                pass
+
+    db.delete(a)
+    db.commit()
+    return {"mensagem": "Atividade deletada"}
 
 # ==========================================================
 # AGENDA
@@ -1102,3 +1565,196 @@ def deletar_agendamento(
     db.delete(h)
     db.commit()
     return {"mensagem": "Agendamento deletado"}
+
+# ==========================================================
+# ANEXOS DE ATIVIDADE
+# ==========================================================
+
+@router.post("/atividades/{atividade_id}/anexos")
+def upload_anexo_atividade(
+    atividade_id: int,
+    arquivo: UploadFile = File(...),
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    a = db.query(models.Atividade).filter(
+        models.Atividade.id == atividade_id,
+        models.Atividade.usuario_id == usuario.id
+    ).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Atividade não encontrada")
+
+    if not arquivo or not arquivo.filename:
+        raise HTTPException(status_code=400, detail="Nenhum arquivo enviado")
+
+    ext = os.path.splitext(arquivo.filename)[1].lower()
+    if ext not in EXTENSOES_PERMITIDAS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Extensão {ext} não permitida. Use: {', '.join(sorted(EXTENSOES_PERMITIDAS))}"
+        )
+
+    nome_unico = f"{uuid.uuid4()}_{arquivo.filename}"
+    caminho = os.path.join(UPLOAD_DIR, nome_unico)
+    with open(caminho, "wb") as f:
+        f.write(arquivo.file.read())
+
+    anexo = models.AtividadeAnexo(
+        atividade_id=atividade_id,
+        nome_original=arquivo.filename,
+        url_arquivo=f"/uploads/{nome_unico}",
+    )
+    db.add(anexo)
+    db.commit()
+    db.refresh(anexo)
+    return {
+        "id": anexo.id,
+        "nome_original": anexo.nome_original,
+        "url_arquivo": anexo.url_arquivo,
+    }
+
+
+@router.delete("/anexos/{anexo_id}")
+def deletar_anexo(anexo_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    anexo = db.query(models.AtividadeAnexo).join(models.Atividade).filter(
+        models.AtividadeAnexo.id == anexo_id,
+        models.Atividade.usuario_id == usuario.id
+    ).first()
+    if not anexo:
+        raise HTTPException(status_code=404, detail="Anexo não encontrado")
+
+    # Apaga o arquivo físico
+    caminho = anexo.url_arquivo.lstrip("/")
+    if os.path.exists(caminho):
+        try:
+            os.remove(caminho)
+        except OSError:
+            pass
+
+    db.delete(anexo)
+    db.commit()
+    return {"mensagem": "Anexo deletado"}
+
+
+# ==========================================================
+# MARCAÇÕES (anotações em PDFs)
+# ==========================================================
+
+import json as _json
+
+TIPOS_MARCACAO_VALIDOS = {"grifo", "retangulo", "seta", "bookmark", "nota"}
+
+
+def _serializar_marcacao(m: models.Marcacao) -> dict:
+    return {
+        "id": m.id,
+        "material_id": m.material_id,
+        "tipo": m.tipo,
+        "pagina": m.pagina,
+        "cor": m.cor,
+        "dados": m.dados,
+        "criado_em": m.criado_em.isoformat() if m.criado_em else None,
+    }
+
+
+def _validar_material_do_usuario(material_id: int, usuario_id: int, db: Session):
+    material = db.query(models.Material).filter(
+        models.Material.id == material_id,
+        models.Material.usuario_id == usuario_id
+    ).first()
+    if not material:
+        raise HTTPException(status_code=404, detail="Material não encontrado")
+    return material
+
+
+def _validar_json(dados_str: str):
+    """Confere se 'dados' é um JSON válido. Salva como string."""
+    try:
+        _json.loads(dados_str)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Campo 'dados' deve ser um JSON válido")
+
+
+@router.get("/materiais/{material_id}/marcacoes")
+def listar_marcacoes(material_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    _validar_material_do_usuario(material_id, usuario.id, db)
+    marcacoes = db.query(models.Marcacao).filter(
+        models.Marcacao.material_id == material_id,
+        models.Marcacao.usuario_id == usuario.id
+    ).order_by(models.Marcacao.pagina.asc(), models.Marcacao.id.asc()).all()
+    return [_serializar_marcacao(m) for m in marcacoes]
+
+
+@router.post("/marcacoes")
+def criar_marcacao(dados: schemas.MarcacaoCreate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    if dados.tipo not in TIPOS_MARCACAO_VALIDOS:
+        raise HTTPException(status_code=400, detail=f"Tipo inválido. Use: {TIPOS_MARCACAO_VALIDOS}")
+    if dados.pagina < 1:
+        raise HTTPException(status_code=400, detail="Página deve ser >= 1")
+    _validar_material_do_usuario(dados.material_id, usuario.id, db)
+    _validar_json(dados.dados)
+
+    m = models.Marcacao(
+        usuario_id=usuario.id,
+        material_id=dados.material_id,
+        tipo=dados.tipo,
+        pagina=dados.pagina,
+        cor=dados.cor,
+        dados=dados.dados,
+    )
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return _serializar_marcacao(m)
+
+
+@router.patch("/marcacoes/{marcacao_id}")
+def editar_marcacao(marcacao_id: int, dados: schemas.MarcacaoUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    m = db.query(models.Marcacao).filter(
+        models.Marcacao.id == marcacao_id,
+        models.Marcacao.usuario_id == usuario.id
+    ).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Marcação não encontrada")
+
+    if dados.cor is not None:
+        m.cor = dados.cor
+    if dados.dados is not None:
+        _validar_json(dados.dados)
+        m.dados = dados.dados
+
+    db.commit()
+    db.refresh(m)
+    return _serializar_marcacao(m)
+
+
+@router.delete("/marcacoes/{marcacao_id}")
+def deletar_marcacao(marcacao_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    m = db.query(models.Marcacao).filter(
+        models.Marcacao.id == marcacao_id,
+        models.Marcacao.usuario_id == usuario.id
+    ).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Marcação não encontrada")
+    db.delete(m)
+    db.commit()
+    return {"mensagem": "Marcação deletada"}
+
+@router.patch("/materiais/{material_id}/ultima-pagina")
+def atualizar_ultima_pagina(
+    material_id: int,
+    dados: schemas.MaterialUltimaPaginaUpdate,
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    if dados.ultima_pagina < 1:
+        raise HTTPException(status_code=400, detail="Página deve ser >= 1")
+    material = db.query(models.Material).filter(
+        models.Material.id == material_id,
+        models.Material.usuario_id == usuario.id
+    ).first()
+    if not material:
+        raise HTTPException(status_code=404, detail="Material não encontrado")
+    material.ultima_pagina = dados.ultima_pagina
+    db.commit()
+    return {"id": material.id, "ultima_pagina": material.ultima_pagina}

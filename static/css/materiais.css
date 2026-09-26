@@ -1,0 +1,55 @@
+/* MATERIAIS */
+.materiais-wrap { display: flex; flex-direction: column; height: 100%; background: white; }
+.materiais-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 25px; border-bottom: 1px solid #ecf0f1; flex-shrink: 0; }
+.materiais-header h2 { font-size: 1.1rem; color: #2c3e50; margin: 0; }
+.materiais-header .acoes { display: flex; gap: 10px; }
+.btn-filtros { background: white; border: 1px solid #bdc3c7; color: #7f8c8d; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+.btn-filtros:hover { border-color: #1abc9c; color: #1abc9c; }
+.btn-filtros.ativo { background: #ecf0f1; border-color: #1abc9c; color: #1abc9c; }
+.tabela-materiais { width: 100%; flex: 1; overflow-y: auto; }
+.tabela-materiais table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.tabela-materiais thead th { background: #2c3e50; color: white; text-align: left; padding: 12px 15px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 2; }
+.tabela-materiais thead th:hover { background: #34495e; }
+.tabela-materiais thead th .seta { margin-left: 5px; opacity: 0.5; font-size: 0.7rem; }
+.tabela-materiais thead th.ordenado .seta { opacity: 1; }
+.tabela-materiais thead th.sem-ordem { cursor: default; }
+.tabela-materiais thead th.sem-ordem:hover { background: #2c3e50; }
+.tabela-materiais tbody tr { border-bottom: 1px solid #ecf0f1; cursor: pointer; transition: 0.15s; }
+.tabela-materiais tbody tr:hover { background: #f9fbfa; }
+.tabela-materiais tbody td { padding: 12px 15px; color: #2c3e50; }
+.tabela-materiais tbody td.col-nome { font-weight: 600; }
+.tabela-materiais tbody td.col-arquivo a, .tabela-materiais tbody td.col-link a { color: #1abc9c; text-decoration: none; }
+.tabela-materiais tbody td.col-arquivo a:hover, .tabela-materiais tbody td.col-link a:hover { text-decoration: underline; }
+.tabela-materiais tbody td.col-acoes { display: flex; gap: 6px; cursor: default; }
+.tabela-materiais tbody td.col-acoes button { background: transparent; border: 1px solid #bdc3c7; color: #7f8c8d; border-radius: 4px; width: 26px; height: 26px; cursor: pointer; font-size: 0.8rem; padding: 0; }
+.tabela-materiais tbody td.col-acoes button:hover { background: #1abc9c; border-color: #1abc9c; color: white; }
+.tabela-materiais tbody td.col-acoes button.excluir:hover { background: #e74c3c; border-color: #e74c3c; }
+.linha-filtros { display: none; }
+.linha-filtros.ativa { display: table-row; }
+.linha-filtros td { background: #f4f7f6; padding: 8px 10px; border-bottom: 1px solid #ecf0f1; }
+.linha-filtros input { width: 100%; padding: 6px 10px; border: 1px solid #ecf0f1; border-radius: 4px; font-size: 0.82rem; font-family: inherit; }
+.linha-filtros input:focus { outline: none; border-color: #1abc9c; }
+.badge-materia, .badge-tipo { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; display: inline-block; }
+.badge-materia { background: #f0f3f2; color: #7f8c8d; }
+.badge-tipo { background: #e8f8f4; color: #16a085; }
+.vazio-tabela { text-align: center; color: #7f8c8d; padding: 40px; font-size: 0.9rem; }
+
+/* TIPOS DE MATERIAL (modal) */
+.lista-categorias { background: white; border-radius: 10px; padding: 15px 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border: 1px solid #ecf0f1; }
+.cat-linha { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f0f3f2; }
+.cat-linha:last-child { border-bottom: none; }
+.cat-linha input { flex: 1; padding: 8px 10px; border: 1px solid #ecf0f1; border-radius: 6px; font-size: 0.9rem; background: #fafcfb; transition: 0.15s; }
+.cat-linha input:focus { outline: none; border-color: #1abc9c; background: white; }
+.cat-linha .btn-acao { background: transparent; border: none; cursor: pointer; font-size: 0.95rem; padding: 4px 6px; color: #7f8c8d; border-radius: 4px; }
+.cat-linha .btn-acao:hover { background: #ecf0f1; }
+.cat-linha .btn-acao.excluir:hover { color: #e74c3c; background: #fdf0ef; }
+.btn-nova-categoria { background: #ecf0f1; border: 2px dashed #bdc3c7; color: #2c3e50; padding: 10px; width: 100%; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; margin-top: 10px; transition: 0.2s; }
+.btn-nova-categoria:hover { background: #e0e6e6; border-color: #1abc9c; color: #1abc9c; }
+
+/* MINHA CONTA */
+.minha-conta-wrap { padding: 25px 35px; }
+.minha-conta-dados { background: white; border-radius: 10px; padding: 20px 25px; margin-bottom: 25px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border: 1px solid #ecf0f1; }
+.minha-conta-dados .campo { margin-bottom: 10px; }
+.minha-conta-dados .campo label { display: block; font-size: 0.78rem; color: #7f8c8d; text-transform: uppercase; font-weight: 700; margin-bottom: 3px; }
+.minha-conta-dados .campo .valor { font-size: 1rem; color: #2c3e50; }
+.minha-conta-cats-titulo { font-size: 1rem; font-weight: 700; color: #2c3e50; margin-bottom: 12px; }
