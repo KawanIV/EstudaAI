@@ -166,19 +166,38 @@ function corDaRaiz() {
 }
 
 function calcularPorcentagemGeral() {
-    let total = 0, concluidos = 0;
-    ARVORE.forEach(plano => {
+    if (!ARVORE || ARVORE.length === 0) return 0;
+
+    // Conta folhas reais de um plano: subtópicos + matérias/tópicos sem filhos
+    function contarFolhasDoPlano(plano) {
+        let total = 0;
         plano.materias.forEach(mat => {
-            mat.topicos.forEach(top => {
-                top.subtopicos.forEach(sub => {
-                    total++;
-                    if (sub.status === 'concluido') concluidos++;
+            if (mat.topicos && mat.topicos.length > 0) {
+                mat.topicos.forEach(top => {
+                    if (top.subtopicos && top.subtopicos.length > 0) {
+                        total += top.subtopicos.length;
+                    } else {
+                        total += 1; // tópico sem subtópicos conta como 1 folha
+                    }
                 });
-            });
+            } else {
+                total += 1; // matéria sem tópicos conta como 1 folha
+            }
         });
+        return total;
+    }
+
+    let somaPonderada = 0;
+    let totalFolhas = 0;
+    ARVORE.forEach(plano => {
+        const folhas = contarFolhasDoPlano(plano);
+        if (folhas === 0) return;
+        somaPonderada += (plano.porcentagem || 0) * folhas;
+        totalFolhas += folhas;
     });
-    if (total === 0) return 0;
-    return Math.round((concluidos / total) * 100);
+
+    if (totalFolhas === 0) return 0;
+    return Math.round(somaPonderada / totalFolhas);
 }
 
 function statusGeral() {
