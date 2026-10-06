@@ -1758,3 +1758,80 @@ def atualizar_ultima_pagina(
     material.ultima_pagina = dados.ultima_pagina
     db.commit()
     return {"id": material.id, "ultima_pagina": material.ultima_pagina}
+
+
+# ==========================================================
+# NOTAS POR PÁGINA (materiais)
+# ==========================================================
+
+@router.get("/materiais/{material_id}/notas/{pagina}")
+def obter_nota_pagina(material_id: int, pagina: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    if pagina < 1:
+        raise HTTPException(status_code=400, detail="Página deve ser >= 1")
+    # Valida dono do material
+    material = db.query(models.Material).filter(
+        models.Material.id == material_id,
+        models.Material.usuario_id == usuario.id
+    ).first()
+    if not material:
+        raise HTTPException(status_code=404, detail="Material não encontrado")
+
+    nota = db.query(models.MaterialNota).filter(
+        models.MaterialNota.usuario_id == usuario.id,
+        models.MaterialNota.material_id == material_id,
+        models.MaterialNota.pagina == pagina
+    ).first()
+
+    if not nota:
+        return {"material_id": material_id, "pagina": pagina, "texto": ""}
+
+    return {
+        "material_id": nota.material_id,
+        "pagina": nota.pagina,
+        "texto": nota.texto or "",
+        "atualizado_em": nota.atualizado_em.isoformat() if nota.atualizado_em else None,
+    }
+
+
+@router.put("/materiais/{material_id}/notas/{pagina}")
+def salvar_nota_pagina(
+    material_id: int,
+    pagina: int,
+    dados: schemas.MaterialNotaUpdate,
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    if pagina < 1:
+        raise HTTPException(status_code=400, detail="Página deve ser >= 1")
+    material = db.query(models.Material).filter(
+        models.Material.id == material_id,
+        models.Material.usuario_id == usuario.id
+    ).first()
+    if not material:
+        raise HTTPException(status_code=404, detail="Material não encontrado")
+
+    nota = db.query(models.MaterialNota).filter(
+        models.MaterialNota.usuario_id == usuario.id,
+        models.MaterialNota.material_id == material_id,
+        models.MaterialNota.pagina == pagina
+    ).first()
+
+    if not nota:
+        nota = models.MaterialNota(
+            usuario_id=usuario.id,
+            material_id=material_id,
+            pagina=pagina,
+            texto=dados.texto,
+        )
+        db.add(nota)
+    else:
+        nota.texto = dados.texto
+
+    db.commit()
+    db.refresh(nota)
+    return {
+        "material_id": nota.material_id,
+        "pagina": nota.pagina,
+        "texto": nota.texto or "",
+        "atualizado_em": nota.atualizado_em.isoformat() if nota.atualizado_em else None,
+    }

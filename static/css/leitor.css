@@ -381,3 +381,137 @@
     gap: 10px;
     margin-top: 14px;
 }
+
+
+/* =========================================================
+   BARRA DE NOTAS (lado esquerdo)
+   ========================================================= */
+.leitor-notas {
+    width: 320px;
+    min-width: 200px;
+    max-width: 700px;
+    background: #1a252f;
+    color: white;
+    border-right: 1px solid #34495e;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.leitor-notas-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid #34495e;
+    flex-shrink: 0;
+}
+.leitor-notas-header h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin: 0;
+    color: #ecf0f1;
+}
+.leitor-notas-header .pagina-label {
+    font-size: 0.72rem;
+    color: #95a5a6;
+    margin-top: 3px;
+}
+.leitor-notas-corpo {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+}
+.leitor-notas textarea {
+    flex: 1;
+    width: 100%;
+    min-height: 150px;
+    padding: 10px;
+    border: 1px solid #34495e;
+    border-radius: 6px;
+    background: #2c3e50;
+    color: #ecf0f1;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    resize: none;
+    box-sizing: border-box;
+}
+.leitor-notas textarea:focus {
+    outline: none;
+    border-color: #1abc9c;
+}
+.leitor-notas-preview {
+    flex: 1;
+    overflow-y: auto;
+    background: #2c3e50;
+    border: 1px solid #34495e;
+    border-radius: 6px;
+    padding: 10px 14px;
+    cursor: text;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #ecf0f1;
+    min-height: 150px;
+}
+.leitor-notas-preview:hover {
+    border-color: #1abc9c;
+}
+.leitor-notas-preview.vazio {
+    color: #7f8c8d;
+    font-style: italic;
+}
+/* Markdown renderizado dentro da nota */
+.leitor-notas-preview h1 { font-size: 1.15rem; margin: 6px 0; color: #ecf0f1; }
+.leitor-notas-preview h2 { font-size: 1.02rem; margin: 6px 0; color: #ecf0f1; }
+.leitor-notas-preview h3 { font-size: 0.92rem; margin: 6px 0; color: #ecf0f1; }
+.leitor-notas-preview p { margin: 4px 0; }
+.leitor-notas-preview ul, .leitor-notas-preview ol { margin: 4px 0 4px 18px; }
+.leitor-notas-preview code {
+    background: #1a252f; padding: 1px 5px; border-radius: 3px;
+    font-family: 'Consolas', monospace; font-size: 0.8rem;
+}
+.leitor-notas-preview pre {
+    background: #0d1418; padding: 8px 10px; border-radius: 4px;
+    overflow-x: auto; margin: 6px 0;
+}
+.leitor-notas-preview pre code { background: transparent; padding: 0; }
+.leitor-notas-preview blockquote {
+    border-left: 3px solid #1abc9c; padding-left: 8px;
+    color: #bdc3c7; margin: 6px 0;
+}
+.leitor-notas-preview a { color: #1abc9c; text-decoration: none; }
+.leitor-notas-preview a:hover { text-decoration: underline; }
+.leitor-notas-status {
+    font-size: 0.72rem;
+    color: #7f8c8d;
+    margin-top: 8px;
+    text-align: right;
+    flex-shrink: 0;
+}
+.leitor-notas-status.salvando { color: #f39c12; }
+.leitor-notas-status.salvo { color: #27ae60; }
+.leitor-notas-status.erro { color: #e74c3c; }
+
+
+/* =========================================================
+   SPLITTER DE NOTAS (redimensionar painel esquerdo)
+   ========================================================= */
+.leitor-splitter-notas {
+    width: 6px;
+    background: #1a252f;
+    cursor: col-resize;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    position: relative;
+}
+.leitor-splitter-notas:hover,
+.leitor-splitter-notas.arrastando {
+    background: #1abc9c;
+}
+/* Área invisível maior pra facilitar pegar a barra */
+.leitor-splitter-notas::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -3px; right: -3px; bottom: 0;
+    cursor: col-resize;
+}

@@ -66,7 +66,7 @@ function reporToolbarLeitor() {
             <button data-ferramenta="retangulo" onclick="mudarFerramenta('retangulo')" title="Retângulo">▭</button>
             <button data-ferramenta="seta" onclick="mudarFerramenta('seta')" title="Seta">↗</button>
             <button data-ferramenta="bookmark" onclick="mudarFerramenta('bookmark')" title="Bookmark">🔖</button>
-            <button data-ferramenta="nota" onclick="mudarFerramenta('nota')" title="Nota">📝</button>
+            <button data-ferramenta="nota" onclick="mudarFerramenta('nota')" title="Nota (post-it na página)">📌</button>
             <div class="separador"></div>
             <div class="cores" id="leitor-toolbar-cores">
                 <div class="cor-bola ativa" data-cor="#fff3a0" style="background:#fff3a0" onclick="escolherCor('#fff3a0')" title="Amarelo"></div>
@@ -77,6 +77,7 @@ function reporToolbarLeitor() {
             </div>
             <div class="separador"></div>
             <button onclick="limparMarcacoesDaPagina()" title="Limpar marcações desta página">🗑️</button>
+            <button onclick="toggleBarraNotas()" title="Notas" id="btn-toggle-notas">📝</button>
             <button onclick="toggleBarraBookmarks()" title="Bookmarks" id="btn-toggle-bookmarks">📑</button>
         </div>
         <div class="leitor-loading">Carregando PDF...</div>
@@ -84,6 +85,10 @@ function reporToolbarLeitor() {
 }
 
 async function fecharLeitor() {
+    if (NOTA_DEBOUNCE_TIMER) {
+    clearTimeout(NOTA_DEBOUNCE_TIMER);
+    await salvarNotaPagina();
+    }
     // Salva a última página antes de fechar
     if (PDF_MATERIAL_ATUAL && PDF_PAGINA_ATUAL > 0) {
         try {
@@ -201,6 +206,12 @@ async function renderizarPagina() {
         desenharMarcacoesDaPagina();
         anexarEventosPagina(canvas, wrap);
         atualizarControles();
+
+        // Se a barra de notas estiver visível, recarrega a nota da nova página
+        const barraNotas = document.getElementById('leitor-notas');
+        if (barraNotas && barraNotas.style.display !== 'none') {
+            carregarNotaDaPagina();
+        }
     } catch (err) {
         console.error('Erro ao renderizar página:', err);
         loading.innerText = 'Erro ao renderizar página ' + PDF_PAGINA_ATUAL;
@@ -675,6 +686,9 @@ async function limparMarcacoesDaPagina() {
 
 // ---------- Fechar com ESC / navegação com setas ----------
 document.addEventListener('keydown', (e) => {
+    // Se tá editando nota, ESC sai da edição (tratado no listener da textarea)
+    if (NOTA_EDITANDO && e.key === 'Escape') return;
+
     if (e.key === 'Escape' && LEITOR_ABERTO) {
         if (document.getElementById('nota-popup').style.display !== 'none') {
             fecharPopupNota();
@@ -850,3 +864,199 @@ async function removerBookmark(id) {
         mostrarToast('Erro ao remover bookmark', 'error');
     }
 }
+
+// ==========================================
+// NOTAS POR PÁGINA
+// ==========================================
+
+function toggleBarraNotas() {
+    const barra = document.getElementById('leitor-notas');
+    const splitter = document.getElementById('leitor-splitter-notas');
+    const visivel = barra.style.display !== 'none';
+    const novoEstado = visivel ? 'none' : 'flex';
+
+    barra.style.display = novoEstado;
+    if (splitter) splitter.style.display = novoEstado;
+
+    if (!visivel) {
+        carregarNotaDaPagina();
+    }
+}
+
+async function carregarNotaDaPagina() {
+    if (!PDF_MATERIAL_ATUAL) return;
+    const materialId = PDF_MATERIAL_ATUAL.id;
+    const pagina = PDF_PAGINA_ATUAL;
+
+    // Atualiza o label da página
+    const label = document.getElementById('leitor-notas-pagina');
+    if (label) label.innerText = `Página ${pagina}`;
+
+    // Estado inicial: mostra "carregando"
+    const status = document.getElementById('leitor-notas-status');
+    if (status) { status.innerText = 'Carregando...'; status.className = 'leitor-notas-status'; }
+
+    const resp = await apiFetch(`/api/estudos/materiais/${materialId}/notas/${pagina}`);
+    if (!resp) return;
+
+    const dados = await resp.json();
+    NOTA_PAGINA_ATUAL = dados.texto || '';
+    NOTA_EDITANDO = false;
+
+    renderizarNota(false);
+
+    if (status) {
+        status.innerText = NOTA_PAGINA_ATUAL ? 'Salvo' : '';
+        status.className = 'leitor-notas-status salvo';
+    }
+}
+
+function renderizarNota(modoEdicao) {
+    const textarea = document.getElementById('leitor-notas-textarea');
+    const preview = document.getElementById('leitor-notas-preview');
+    if (!textarea || !preview) return;
+
+    if (modoEdicao) {
+        textarea.style.display = 'block';
+        preview.style.display = 'none';
+        textarea.value = NOTA_PAGINA_ATUAL;
+        NOTA_EDITANDO = true;
+    } else {
+        textarea.style.display = 'none';
+        preview.style.display = 'block';
+        if (NOTA_PAGINA_ATUAL && NOTA_PAGINA_ATUAL.trim()) {
+            preview.innerHTML = renderizarMarkdown(NOTA_PAGINA_ATUAL);
+            preview.classList.remove('vazio');
+        } else {
+            preview.innerHTML = 'Escreva uma nota em markdown sobre esta página...';
+            preview.classList.add('vazio');
+        }
+        NOTA_EDITANDO = false;
+    }
+}
+
+function editarNotaPagina() {
+    if (NOTA_EDITANDO) return;
+    renderizarNota(true);
+    const textarea = document.getElementById('leitor-notas-textarea');
+    if (textarea) {
+        textarea.focus();
+        // Cursor no fim
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+}
+
+function sairDoCampoNota() {
+    const textarea = document.getElementById('leitor-notas-textarea');
+    if (!textarea) return;
+    NOTA_PAGINA_ATUAL = textarea.value;
+    renderizarNota(false);
+    // Se mudou algo, agenda salvar
+    agendarSalvarNota();
+}
+
+function agendarSalvarNota() {
+    if (NOTA_DEBOUNCE_TIMER) clearTimeout(NOTA_DEBOUNCE_TIMER);
+    const status = document.getElementById('leitor-notas-status');
+    if (status) {
+        status.innerText = 'Editando...';
+        status.className = 'leitor-notas-status salvando';
+    }
+    NOTA_DEBOUNCE_TIMER = setTimeout(salvarNotaPagina, 2000);
+}
+
+async function salvarNotaPagina() {
+    if (!PDF_MATERIAL_ATUAL) return;
+    const materialId = PDF_MATERIAL_ATUAL.id;
+    const pagina = PDF_PAGINA_ATUAL;
+    const status = document.getElementById('leitor-notas-status');
+
+    if (status) { status.innerText = 'Salvando...'; status.className = 'leitor-notas-status salvando'; }
+
+    const resp = await apiFetch(`/api/estudos/materiais/${materialId}/notas/${pagina}`, {
+        method: 'PUT',
+        body: JSON.stringify({ texto: NOTA_PAGINA_ATUAL || '' })
+    });
+
+    if (resp && resp.ok) {
+        if (status) { status.innerText = 'Salvo'; status.className = 'leitor-notas-status salvo'; }
+    } else {
+        if (status) { status.innerText = 'Erro ao salvar'; status.className = 'leitor-notas-status erro'; }
+    }
+}
+
+// Eventos da textarea (uma vez só, no carregamento da página)
+document.addEventListener('DOMContentLoaded', () => {
+    const textarea = document.getElementById('leitor-notas-textarea');
+    if (!textarea) return;
+
+    // Ao digitar, atualiza variável e agenda save
+    textarea.addEventListener('input', () => {
+        NOTA_PAGINA_ATUAL = textarea.value;
+        agendarSalvarNota();
+    });
+
+    // Ao sair do campo, renderiza
+    textarea.addEventListener('blur', () => {
+        sairDoCampoNota();
+    });
+
+    // ESC sai do modo edição
+    textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            e.stopPropagation();
+            textarea.blur();
+        }
+    });
+});
+
+// ==========================================
+// SPLITTER — redimensionar painel de notas
+// ==========================================
+function inicializarSplitterNotas() {
+    const splitter = document.getElementById('leitor-splitter-notas');
+    const barra = document.getElementById('leitor-notas');
+    if (!splitter || !barra) return;
+
+    // Restaura a largura salva (se houver)
+    const larguraSalva = localStorage.getItem('larguraNotasPDF');
+    if (larguraSalva) {
+        barra.style.width = larguraSalva + 'px';
+    }
+
+    let arrastando = false;
+    let larguraInicial = 0;
+    let xInicial = 0;
+
+    splitter.addEventListener('mousedown', (e) => {
+        arrastando = true;
+        larguraInicial = barra.offsetWidth;
+        xInicial = e.clientX;
+        splitter.classList.add('arrastando');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!arrastando) return;
+        const delta = e.clientX - xInicial;
+        let novaLargura = larguraInicial + delta;
+        // Limites
+        novaLargura = Math.max(200, Math.min(700, novaLargura));
+        barra.style.width = novaLargura + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (!arrastando) return;
+        arrastando = false;
+        splitter.classList.remove('arrastando');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        // Salva a largura atual
+        localStorage.setItem('larguraNotasPDF', barra.offsetWidth);
+    });
+}
+
+// Inicializa quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', inicializarSplitterNotas);

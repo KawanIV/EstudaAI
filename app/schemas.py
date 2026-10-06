@@ -166,3 +166,6 @@ class MarcacaoUpdate(BaseModel):
 
 class MaterialUltimaPaginaUpdate(BaseModel):
     ultima_pagina: int
+
+class MaterialNotaUpdate(BaseModel):
+    texto: str

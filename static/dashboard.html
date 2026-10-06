@@ -205,8 +205,29 @@
             <button class="leitor-fechar" onclick="fecharLeitor()" title="Fechar (Esc)">✕ Fechar</button>
         </div>
 
-        <!-- Corpo do leitor: área + bookmarks -->
+        <!-- Corpo do leitor: notas + área + bookmarks -->
         <div style="display:flex; flex:1; overflow:hidden;">
+
+            <!-- Barra de notas (lado esquerdo) -->
+            <div class="leitor-notas" id="leitor-notas" style="display:none;">
+                <div class="leitor-notas-header">
+                    <h4>📝 Notas</h4>
+                    <div class="pagina-label" id="leitor-notas-pagina">Página 1</div>
+                </div>
+                <div class="leitor-notas-corpo">
+                    <textarea id="leitor-notas-textarea"
+                              placeholder="Escreva uma nota em markdown sobre esta página..."
+                              style="display:none;"></textarea>
+                    <div class="leitor-notas-preview vazio" id="leitor-notas-preview"
+                         onclick="editarNotaPagina()">
+                        Escreva uma nota em markdown sobre esta página...
+                    </div>
+                    <div class="leitor-notas-status" id="leitor-notas-status"></div>
+                </div>
+            </div>
+
+            <!-- Splitter (arrasta pra redimensionar) -->
+            <div class="leitor-splitter-notas" id="leitor-splitter-notas" style="display:none;"></div>
 
             <!-- Área do PDF (toolbar é criada pelo JS) -->
             <div class="leitor-area" id="leitor-area"></div>

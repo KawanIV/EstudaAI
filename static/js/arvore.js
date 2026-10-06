@@ -102,6 +102,12 @@ function badgeCat(cat) {
 function selecionarPlano(planoId) {
     const plano = ARVORE.find(p => p.id === planoId);
     if (!plano) return;
+
+    // Se está trocando de plano, limpa o estado de expansão
+    if (!PLANO_ATUAL || PLANO_ATUAL.id !== planoId) {
+        NOS_EXPANDIDOS.clear();
+    }
+
     PLANO_ATUAL = plano;
     NO_ATUAL = null;
     document.getElementById('bem-vindo-conteudo').style.display = 'block';
@@ -109,7 +115,6 @@ function selecionarPlano(planoId) {
     if (MODO === 'conta' || MODO === 'materiais' || MODO === 'agenda' || MODO === 'atividades') mudarModo('mapa');
     else renderizarModoAtual();
 }
-
 function selecionarNo(tipo, id) {
     const ref = encontrarNo(tipo, id);
     if (!ref) return;

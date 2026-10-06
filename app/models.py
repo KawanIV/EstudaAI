@@ -185,6 +185,18 @@ class Marcacao(Base):
     usuario = relationship("Usuario")
     material = relationship("Material")
 
+class MaterialNota(Base):
+    __tablename__ = "materiais_notas"
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True)
+    material_id = Column(Integer, ForeignKey("materiais.id", ondelete="CASCADE"), nullable=False, index=True)
+    pagina = Column(Integer, nullable=False)
+    texto = Column(Text, nullable=True)
+    atualizado_em = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    usuario = relationship("Usuario")
+    material = relationship("Material")
+
 # ==========================================================
 # CONTEÚDOS
 # ==========================================================
@@ -255,3 +267,4 @@ class MetricaAcesso(Base):
     acao = Column(String(50))
 
     usuario = relationship("Usuario", back_populates="acessos")
+

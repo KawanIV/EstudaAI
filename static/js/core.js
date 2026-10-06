@@ -37,6 +37,9 @@ let PDF_ZOOM = 1.0;
 let PDF_RENDERIZANDO = false;
 let PDF_MARCACOES = [];
 // Leitor de PDF — ferramentas
+let NOTA_PAGINA_ATUAL = '';
+let NOTA_DEBOUNCE_TIMER = null;
+let NOTA_EDITANDO = false;
 let FERRAMENTA_ATUAL = 'navegar';      // navegar | retangulo | seta | bookmark | nota
 let COR_ATUAL = '#fff3a0';
 let BARRA_SELECAO_RECTS = null;

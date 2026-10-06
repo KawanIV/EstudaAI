@@ -1,3 +1,0 @@
-Depois de criar o .venv na pasta do projeto, para executar o python:
-1) ls -la
-2) source .venv/bin/activate
