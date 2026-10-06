@@ -70,6 +70,7 @@ class PlanoEstudo(Base):
     usuario = relationship("Usuario", back_populates="planos")
     categoria = relationship("Categoria", foreign_keys=[categoria_id])
     materias = relationship("Materia", back_populates="plano", cascade="all, delete-orphan")
+    status_manual = Column(String(20), default="auto", nullable=False)
 
 
 class Materia(Base):
@@ -83,6 +84,7 @@ class Materia(Base):
     plano = relationship("PlanoEstudo", back_populates="materias")
     categoria = relationship("Categoria", foreign_keys=[categoria_id])
     topicos = relationship("Topico", back_populates="materia", cascade="all, delete-orphan")
+    status_manual = Column(String(20), default="auto", nullable=False)
 
 
 class Topico(Base):
@@ -100,6 +102,7 @@ class Topico(Base):
     subtopicos = relationship("Subtopico", back_populates="topico", cascade="all, delete-orphan")
     conteudos = relationship("Conteudo", back_populates="topico", cascade="all, delete-orphan")   # 👈 NOVA LINHA
     horarios = relationship("HorarioEstudo", back_populates="topico", cascade="all, delete-orphan")
+    status_manual = Column(String(20), default="auto", nullable=False)
 
 
 class Subtopico(Base):
@@ -117,6 +120,7 @@ class Subtopico(Base):
     conteudos = relationship("Conteudo", back_populates="subtopico", cascade="all, delete-orphan")
     perguntas = relationship("Pergunta", back_populates="subtopico", cascade="all, delete-orphan")
     horarios = relationship("HorarioEstudo", back_populates="subtopico", cascade="all, delete-orphan")
+    status_manual = Column(String(20), default="adicionado", nullable=False)
 
 # ==========================================================
 # MATERIAIS (biblioteca pessoal do aluno)

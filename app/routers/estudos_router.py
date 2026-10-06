@@ -1,32 +1,40 @@
 import os
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from ..database import get_db
 from .. import models, schemas
 from ..auth import get_usuario_atual
 
+import json as _json
+
+
 router = APIRouter(prefix="/api/estudos", tags=["Estudos"])
 
 UPLOAD_DIR = "uploads"
 
-STATUS_VALIDOS = {"adicionado", "em_estudo", "concluido"}
+STATUS_VALIDOS = {"auto", "adicionado", "em_estudo", "concluido"}
+STATUS_ATIVIDADE_VALIDOS = {"pendente", "em_andamento", "feito"}
+TIPOS_MARCACAO_VALIDOS = {"grifo", "retangulo", "seta", "bookmark", "nota"}
+
 EXTENSOES_PERMITIDAS = {
     # Documentos
     ".pdf", ".docx", ".doc", ".txt", ".md", ".odt", ".rtf", ".csv", ".xlsx", ".xls", ".pptx", ".ppt",
     # Imagens
     ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp",
     # Códigos
-    ".py", ".ipynb", ".js", ".ts", ".html", ".css", ".java", ".c", ".cpp", ".cs", ".go", ".rs", ".rb", ".php", ".sh", ".sql", ".json", ".xml", ".yaml", ".yml",
+    ".py", ".ipynb", ".js", ".ts", ".html", ".css", ".java", ".c", ".cpp", ".cs",
+    ".go", ".rs", ".rb", ".php", ".sh", ".sql", ".json", ".xml", ".yaml", ".yml",
     # Compactados
     ".zip", ".rar", ".7z", ".tar", ".gz",
     # Outros
     ".tex", ".epub", ".mp3", ".mp4", ".mov", ".wav",
 }
-STATUS_ATIVIDADE_VALIDOS = {"pendente", "em_andamento", "feito"}
+
 
 # ==========================================================
-# HELPERS
+# HELPERS — permissão
 # ==========================================================
 
 def verificar_dono_plano(plano_id: int, usuario_id: int, db: Session):
@@ -39,8 +47,7 @@ def verificar_dono_plano(plano_id: int, usuario_id: int, db: Session):
     return plano
 
 
-def verificar_categoria_do_usuario(categoria_id: int, usuario_id: int, db: Session):
-    """Retorna a categoria se ela for do usuário. Senão, 404."""
+def verificar_categoria_do_usuario(categoria_id, usuario_id: int, db: Session):
     if categoria_id is None:
         return None
     cat = db.query(models.Categoria).filter(
@@ -51,12 +58,151 @@ def verificar_categoria_do_usuario(categoria_id: int, usuario_id: int, db: Sessi
         raise HTTPException(status_code=404, detail="Categoria não encontrada")
     return cat
 
+
+def verificar_tipo_do_usuario(tipo_id, usuario_id: int, db: Session):
+    if tipo_id is None:
+        return None
+    t = db.query(models.TipoMaterial).filter(
+        models.TipoMaterial.id == tipo_id,
+        models.TipoMaterial.usuario_id == usuario_id
+    ).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Tipo não encontrado")
+    return t
+
+
+def verificar_tipo_atividade_do_usuario(tipo_id, usuario_id: int, db: Session):
+    if tipo_id is None:
+        return None
+    t = db.query(models.TipoAtividade).filter(
+        models.TipoAtividade.id == tipo_id,
+        models.TipoAtividade.usuario_id == usuario_id
+    ).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Tipo de atividade não encontrado")
+    return t
+
+
+def _validar_material_do_usuario(material_id: int, usuario_id: int, db: Session):
+    material = db.query(models.Material).filter(
+        models.Material.id == material_id,
+        models.Material.usuario_id == usuario_id
+    ).first()
+    if not material:
+        raise HTTPException(status_code=404, detail="Material não encontrado")
+    return material
+
+
+# ==========================================================
+# HELPERS — serialização
+# ==========================================================
+
+def serializar_categoria(cat):
+    if cat is None:
+        return None
+    return {"id": cat.id, "nome": cat.nome}
+
+
+def serializar_tipo(t):
+    if t is None:
+        return None
+    return {"id": t.id, "nome": t.nome}
+
+
+def serializar_tipo_atividade(t):
+    if t is None:
+        return None
+    return {"id": t.id, "nome": t.nome}
+
+
+def serializar_conteudo(c):
+    return {
+        "id": c.id, "tipo": c.tipo, "titulo": c.titulo,
+        "texto": c.texto, "url_arquivo": c.url_arquivo,
+        "url_link": c.url_link,
+    }
+
+
+# ==========================================================
+# HELPERS — status e porcentagem
+# ==========================================================
+
+def _pct_do_status(status: str) -> int:
+    """Porcentagem a partir do status de um nó (plano/matéria/tópico/subtópico)."""
+    mapa = {"adicionado": 0, "em_estudo": 50, "concluido": 100}
+    return mapa.get(status, 0)
+
+
+def _pct_do_status_atividade(status: str) -> int:  # ← NOVO
+    """Porcentagem a partir do status de uma atividade (pendente/em_andamento/feito)."""
+    mapa = {"pendente": 0, "em_andamento": 50, "feito": 100}
+    return mapa.get(status, 0)
+
+
+def _media_simples(valores: list) -> int:
+    if not valores:
+        return 0
+    return round(sum(valores) / len(valores))
+
+
+def _status_efetivo(pct: int) -> str:
+    if pct <= 0:
+        return "adicionado"
+    if pct >= 100:
+        return "concluido"
+    return "em_estudo"
+
+
+def status_do_subtopico(sub: models.Subtopico) -> tuple:
+    st = sub.status_manual or "adicionado"
+    if st == "auto":
+        st = "adicionado"
+    return (st, _pct_do_status(st))
+
+
+def status_do_topico(top: models.Topico) -> tuple:
+    if top.status_manual and top.status_manual != "auto":
+        pct = _pct_do_status(top.status_manual)
+        return (top.status_manual, pct)
+    if top.subtopicos:
+        valores = [_pct_do_status(s.status_manual or "adicionado") for s in top.subtopicos]
+        pct = _media_simples(valores)
+        return (_status_efetivo(pct), pct)
+    return ("adicionado", 0)
+
+
+def status_da_materia_com_atividades(mat: models.Materia, atividades_da_materia: list) -> tuple:
+    """Matéria:
+    - Se status_manual != auto → usa ele
+    - Se auto e tem tópicos → média dos tópicos
+    - Se auto e não tem tópicos mas tem atividades → média das atividades
+    - Senão → 0%
+    """
+    if mat.status_manual and mat.status_manual != "auto":
+        pct = _pct_do_status(mat.status_manual)
+        return (mat.status_manual, pct)
+
+    if mat.topicos:
+        valores = []
+        for t in mat.topicos:
+            _, pct = status_do_topico(t)
+            valores.append(pct)
+        pct = _media_simples(valores)
+        return (_status_efetivo(pct), pct)
+
+    if atividades_da_materia:
+        valores = [_pct_do_status_atividade(a.status) for a in atividades_da_materia]  # ← ALTERADO
+        pct = _media_simples(valores)
+        return (_status_efetivo(pct), pct)
+
+    return ("adicionado", 0)
+
+
+# ==========================================================
+# HELPERS — apagar arquivos em cascata
+# ==========================================================
+
 def apagar_arquivos_conteudos(conteudos: list, db: Session):
-    """
-    Apaga do disco os arquivos físicos de uma lista de conteúdos.
-    Chamado antes de deletar pais (plano/matéria/tópico/subtópico).
-    Não commita nada no banco — só apaga arquivo.
-    """
     for c in conteudos:
         if c.url_arquivo:
             caminho = c.url_arquivo.lstrip("/")
@@ -64,23 +210,20 @@ def apagar_arquivos_conteudos(conteudos: list, db: Session):
                 try:
                     os.remove(caminho)
                 except OSError:
-                    pass  # Se falhar (permissão, etc), ignora — o banco segue
+                    pass
 
 
 def apagar_todos_conteudos_do_subtopico(sub: models.Subtopico, db: Session):
-    """Apaga os arquivos de todos os conteúdos de um subtópico."""
     apagar_arquivos_conteudos(sub.conteudos, db)
 
 
 def apagar_todos_conteudos_do_topico(top: models.Topico, db: Session):
-    """Apaga os arquivos dos conteúdos do tópico + de todos os seus subtópicos."""
     apagar_arquivos_conteudos(top.conteudos, db)
     for sub in top.subtopicos:
         apagar_arquivos_conteudos(sub.conteudos, db)
 
 
 def apagar_todos_conteudos_da_materia(mat: models.Materia, db: Session):
-    """Apaga os arquivos dos conteúdos da matéria + tópicos + subtópicos."""
     for top in mat.topicos:
         apagar_arquivos_conteudos(top.conteudos, db)
         for sub in top.subtopicos:
@@ -88,76 +231,42 @@ def apagar_todos_conteudos_da_materia(mat: models.Materia, db: Session):
 
 
 def apagar_todos_conteudos_do_plano(plano: models.PlanoEstudo, db: Session):
-    """Apaga os arquivos dos conteúdos do plano inteiro (todos os níveis)."""
     for mat in plano.materias:
         for top in mat.topicos:
             apagar_arquivos_conteudos(top.conteudos, db)
             for sub in top.subtopicos:
                 apagar_arquivos_conteudos(sub.conteudos, db)
 
-def calcular_status_agregado(statuses_filhos: list[str]) -> tuple[str, int]:
-    if not statuses_filhos:
-        return ("adicionado", 0)
 
-    total = len(statuses_filhos)
-    concluidos = sum(1 for s in statuses_filhos if s == "concluido")
-    em_estudo = sum(1 for s in statuses_filhos if s == "em_estudo")
-    percentual = round((concluidos / total) * 100)
+# ==========================================================
+# HELPERS — datas
+# ==========================================================
 
-    if concluidos == total:
-        return ("concluido", 100)
-    if concluidos == 0 and em_estudo == 0:
-        return ("adicionado", 0)
-    return ("em_estudo", percentual)
-
-
-def status_do_subtopico(sub: models.Subtopico) -> tuple[str, int]:
-    mapa = {"adicionado": 0, "em_estudo": 50, "concluido": 100}
-    return (sub.status or "adicionado", mapa.get(sub.status, 0))
-
-
-def status_do_topico(top: models.Topico) -> tuple[str, int]:
-    total = len(top.subtopicos)
-    if total == 0:
-        mapa = {"adicionado": 0, "em_estudo": 50, "concluido": 100}
-        return (top.status or "adicionado", mapa.get(top.status, 0))
-
-    concluidos = sum(1 for s in top.subtopicos if s.status == "concluido")
-    percentual = round((concluidos / total) * 100)
-
-    if top.status == "concluido":
-        return ("concluido", 100)
-    if top.status == "em_estudo":
-        return ("em_estudo", percentual)
-    if percentual == 100:
-        return ("concluido", 100)
-    if percentual > 0:
-        return ("em_estudo", percentual)
-    return ("adicionado", 0)
-
-
-def status_da_materia(mat: models.Materia) -> tuple[str, int]:
-    todos_status = []
-    for top in mat.topicos:
-        for sub in top.subtopicos:
-            todos_status.append(sub.status or "adicionado")
-    return calcular_status_agregado(todos_status)
-
-
-def status_do_plano(plano: models.PlanoEstudo) -> tuple[str, int]:
-    todos_status = []
-    for mat in plano.materias:
-        for top in mat.topicos:
-            for sub in top.subtopicos:
-                todos_status.append(sub.status or "adicionado")
-    return calcular_status_agregado(todos_status)
-
-
-def serializar_categoria(cat):
-    """Retorna {id, nome} ou None."""
-    if cat is None:
+def _parse_datetime(s: str) -> datetime:
+    if not s:
         return None
-    return {"id": cat.id, "nome": cat.nome}
+    s = s.strip().replace('Z', '+00:00')
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Data inválida: {s}")
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _aware(dt: datetime) -> datetime:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _parse_data_entrega(s):
+    if not s or not s.strip():
+        return None
+    return _parse_datetime(s)
 
 
 # ==========================================================
@@ -221,30 +330,12 @@ def deletar_categoria(categoria_id: int, usuario=Depends(get_usuario_atual), db:
 # TIPOS DE MATERIAL
 # ==========================================================
 
-def serializar_tipo(t):
-    if t is None: return None
-    return {"id": t.id, "nome": t.nome}
-
-
-def verificar_tipo_do_usuario(tipo_id: int, usuario_id: int, db: Session):
-    if tipo_id is None:
-        return None
-    t = db.query(models.TipoMaterial).filter(
-        models.TipoMaterial.id == tipo_id,
-        models.TipoMaterial.usuario_id == usuario_id
-    ).first()
-    if not t:
-        raise HTTPException(status_code=404, detail="Tipo não encontrado")
-    return t
-
-
 @router.get("/tipos-material")
 def listar_tipos(usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     tipos = db.query(models.TipoMaterial).filter(
         models.TipoMaterial.usuario_id == usuario.id
     ).order_by(models.TipoMaterial.nome.asc()).all()
 
-    # Se o usuário ainda não tem nenhum tipo, cria os 4 padrão
     if not tipos:
         padrao = ["Livro", "Anotação", "Trabalho", "Apostila"]
         for nome in padrao:
@@ -301,6 +392,74 @@ def deletar_tipo(tipo_id: int, usuario=Depends(get_usuario_atual), db: Session =
     db.commit()
     return {"mensagem": "Tipo deletado"}
 
+
+# ==========================================================
+# TIPOS DE ATIVIDADE
+# ==========================================================
+
+@router.get("/tipos-atividade")
+def listar_tipos_atividade(usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    tipos = db.query(models.TipoAtividade).filter(
+        models.TipoAtividade.usuario_id == usuario.id
+    ).order_by(models.TipoAtividade.nome.asc()).all()
+
+    if not tipos:
+        padrao = ["Trabalho", "Prova", "Projeto", "Resumo", "Lista de Exercícios"]
+        for nome in padrao:
+            db.add(models.TipoAtividade(usuario_id=usuario.id, nome=nome))
+        db.commit()
+        tipos = db.query(models.TipoAtividade).filter(
+            models.TipoAtividade.usuario_id == usuario.id
+        ).order_by(models.TipoAtividade.nome.asc()).all()
+
+    return [serializar_tipo_atividade(t) for t in tipos]
+
+
+@router.post("/tipos-atividade")
+def criar_tipo_atividade(dados: schemas.TipoAtividadeCreate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    nome = dados.nome.strip()
+    if not nome:
+        raise HTTPException(status_code=400, detail="Nome não pode ser vazio")
+    existe = db.query(models.TipoAtividade).filter(
+        models.TipoAtividade.usuario_id == usuario.id,
+        models.TipoAtividade.nome == nome
+    ).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Já existe um tipo com esse nome")
+    t = models.TipoAtividade(usuario_id=usuario.id, nome=nome)
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return serializar_tipo_atividade(t)
+
+
+@router.patch("/tipos-atividade/{tipo_id}")
+def editar_tipo_atividade(tipo_id: int, dados: schemas.TipoAtividadeUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    t = verificar_tipo_atividade_do_usuario(tipo_id, usuario.id, db)
+    nome = dados.nome.strip()
+    if not nome:
+        raise HTTPException(status_code=400, detail="Nome não pode ser vazio")
+    existe = db.query(models.TipoAtividade).filter(
+        models.TipoAtividade.usuario_id == usuario.id,
+        models.TipoAtividade.nome == nome,
+        models.TipoAtividade.id != tipo_id
+    ).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Já existe outro tipo com esse nome")
+    t.nome = nome
+    db.commit()
+    db.refresh(t)
+    return serializar_tipo_atividade(t)
+
+
+@router.delete("/tipos-atividade/{tipo_id}")
+def deletar_tipo_atividade(tipo_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    t = verificar_tipo_atividade_do_usuario(tipo_id, usuario.id, db)
+    db.delete(t)
+    db.commit()
+    return {"mensagem": "Tipo de atividade deletado"}
+
+
 # ==========================================================
 # ÁRVORE COMPLETA
 # ==========================================================
@@ -311,52 +470,89 @@ def arvore_completa(usuario=Depends(get_usuario_atual), db: Session = Depends(ge
         models.PlanoEstudo.usuario_id == usuario.id
     ).all()
 
-    def serializar_conteudo(c):
-        return {
-            "id": c.id, "tipo": c.tipo, "titulo": c.titulo,
-            "texto": c.texto, "url_arquivo": c.url_arquivo,
-            "url_link": c.url_link
-        }
+    # Busca todas as atividades do usuário de uma vez
+    todas_atividades = db.query(models.Atividade).filter(
+        models.Atividade.usuario_id == usuario.id
+    ).all()
+
+    atividades_por_materia = {}
+    atividades_por_plano = {}
+    for a in todas_atividades:
+        if a.materia_id:
+            atividades_por_materia.setdefault(a.materia_id, []).append(a)
+        if a.plano_id:
+            atividades_por_plano.setdefault(a.plano_id, []).append(a)
 
     resultado = []
     for plano in planos:
-        plano_status, plano_pct = status_do_plano(plano)
+        # Status do plano
+        if plano.status_manual and plano.status_manual != "auto":
+            plano_status = plano.status_manual
+            plano_pct = _pct_do_status(plano_status)
+        elif plano.materias:
+            valores = []
+            for m in plano.materias:
+                acts = atividades_por_materia.get(m.id, [])
+                _, pct_m = status_da_materia_com_atividades(m, acts)
+                valores.append(pct_m)
+            plano_pct = _media_simples(valores)
+            plano_status = _status_efetivo(plano_pct)
+        else:
+            plano_status = "adicionado"
+            plano_pct = 0
+
         materias_list = []
         for m in plano.materias:
-            mat_status, mat_pct = status_da_materia(m)
+            acts = atividades_por_materia.get(m.id, [])
+            mat_status, mat_pct = status_da_materia_com_atividades(m, acts)
+
             topicos_list = []
             for t in m.topicos:
                 top_status, top_pct = status_do_topico(t)
+
                 subs_list = []
                 for s in t.subtopicos:
                     sub_status, sub_pct = status_do_subtopico(s)
                     subs_list.append({
                         "id": s.id, "numero": s.numero, "nome": s.nome,
                         "categoria": serializar_categoria(s.categoria),
-                        "status": sub_status, "porcentagem": sub_pct,
+                        "status": sub_status,
+                        "status_manual": s.status_manual or "adicionado",
+                        "porcentagem": sub_pct,
                         "conteudos": [serializar_conteudo(c) for c in s.conteudos],
-                        "horarios": [_serializar_horario(h, db) for h in s.horarios], 
+                        "horarios": [_serializar_horario(h, db) for h in s.horarios],
                     })
+
                 topicos_list.append({
                     "id": t.id, "numero": t.numero, "nome": t.nome,
                     "categoria": serializar_categoria(t.categoria),
-                    "status": top_status, "porcentagem": top_pct,
-                    "conteudos": [serializar_conteudo(c) for c in t.conteudos],   # 👈 NOVA LINHA
-                    "horarios": [_serializar_horario(h, db) for h in t.horarios], 
+                    "status": top_status,
+                    "status_manual": t.status_manual or "auto",
+                    "porcentagem": top_pct,
+                    "conteudos": [serializar_conteudo(c) for c in t.conteudos],
+                    "horarios": [_serializar_horario(h, db) for h in t.horarios],
                     "subtopicos": subs_list,
                 })
+
             materias_list.append({
                 "id": m.id, "nome": m.nome,
                 "categoria": serializar_categoria(m.categoria),
-                "status": mat_status, "porcentagem": mat_pct,
+                "status": mat_status,
+                "status_manual": m.status_manual or "auto",
+                "porcentagem": mat_pct,
                 "topicos": topicos_list,
             })
+
         resultado.append({
-            "id": plano.id, "nome": plano.nome,
+            "id": plano.id,
+            "nome": plano.nome,
             "categoria": serializar_categoria(plano.categoria),
-            "status": plano_status, "porcentagem": plano_pct,
+            "status": plano_status,
+            "status_manual": plano.status_manual or "auto",
+            "porcentagem": plano_pct,
             "materias": materias_list,
         })
+
     return resultado
 
 
@@ -399,10 +595,20 @@ def editar_plano(plano_id: int, dados: schemas.PlanoUpdate, usuario=Depends(get_
     return plano
 
 
+@router.patch("/planos/{plano_id}/status")
+def mudar_status_plano(plano_id: int, dados: schemas.StatusUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    if dados.status not in STATUS_VALIDOS:
+        raise HTTPException(status_code=400, detail=f"Status inválido. Use: {STATUS_VALIDOS}")
+    plano = verificar_dono_plano(plano_id, usuario.id, db)
+    plano.status_manual = dados.status
+    db.commit()
+    db.refresh(plano)
+    return {"id": plano.id, "status_manual": plano.status_manual}
+
+
 @router.delete("/planos/{plano_id}")
 def deletar_plano(plano_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     plano = verificar_dono_plano(plano_id, usuario.id, db)
-    # Apaga arquivos físicos antes de deletar no banco
     apagar_todos_conteudos_do_plano(plano, db)
     db.delete(plano)
     db.commit()
@@ -444,6 +650,22 @@ def editar_materia(materia_id: int, dados: schemas.MateriaUpdate, usuario=Depend
     return materia
 
 
+@router.patch("/materias/{materia_id}/status")
+def mudar_status_materia(materia_id: int, dados: schemas.StatusUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    if dados.status not in STATUS_VALIDOS:
+        raise HTTPException(status_code=400, detail=f"Status inválido. Use: {STATUS_VALIDOS}")
+    materia = db.query(models.Materia).join(models.PlanoEstudo).filter(
+        models.Materia.id == materia_id,
+        models.PlanoEstudo.usuario_id == usuario.id
+    ).first()
+    if not materia:
+        raise HTTPException(status_code=404, detail="Matéria não encontrada")
+    materia.status_manual = dados.status
+    db.commit()
+    db.refresh(materia)
+    return {"id": materia.id, "status_manual": materia.status_manual}
+
+
 @router.delete("/materias/{materia_id}")
 def deletar_materia(materia_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     materia = db.query(models.Materia).join(models.PlanoEstudo).filter(
@@ -474,7 +696,7 @@ def criar_topico(materia_id: int, dados: schemas.TopicoCreate, usuario=Depends(g
     topico = models.Topico(
         materia_id=materia_id, numero=dados.numero, nome=dados.nome,
         ordem=dados.ordem or 0, categoria_id=dados.categoria_id,
-        status="adicionado",
+        status_manual="auto",
     )
     db.add(topico)
     db.commit()
@@ -510,10 +732,10 @@ def mudar_status_topico(topico_id: int, dados: schemas.StatusUpdate, usuario=Dep
     ).first()
     if not topico:
         raise HTTPException(status_code=404, detail="Tópico não encontrado")
-    topico.status = dados.status
+    topico.status_manual = dados.status
     db.commit()
     db.refresh(topico)
-    return {"id": topico.id, "status": topico.status}
+    return {"id": topico.id, "status_manual": topico.status_manual}
 
 
 @router.delete("/topicos/{topico_id}")
@@ -546,7 +768,7 @@ def criar_subtopico(topico_id: int, dados: schemas.SubtopicoCreate, usuario=Depe
     sub = models.Subtopico(
         topico_id=topico_id, numero=dados.numero, nome=dados.nome,
         ordem=dados.ordem or 0, categoria_id=dados.categoria_id,
-        status="adicionado",
+        status_manual="adicionado",
     )
     db.add(sub)
     db.commit()
@@ -576,16 +798,18 @@ def editar_subtopico(subtopico_id: int, dados: schemas.SubtopicoUpdate, usuario=
 def mudar_status_subtopico(subtopico_id: int, dados: schemas.StatusUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     if dados.status not in STATUS_VALIDOS:
         raise HTTPException(status_code=400, detail=f"Status inválido. Use: {STATUS_VALIDOS}")
+    if dados.status == "auto":
+        raise HTTPException(status_code=400, detail="Subtópico não aceita status 'auto'")
     sub = db.query(models.Subtopico).join(models.Topico).join(models.Materia).join(models.PlanoEstudo).filter(
         models.Subtopico.id == subtopico_id,
         models.PlanoEstudo.usuario_id == usuario.id
     ).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Subtópico não encontrado")
-    sub.status = dados.status
+    sub.status_manual = dados.status
     db.commit()
     db.refresh(sub)
-    return {"id": sub.id, "status": sub.status}
+    return {"id": sub.id, "status_manual": sub.status_manual}
 
 
 @router.delete("/subtopicos/{subtopico_id}")
@@ -623,7 +847,6 @@ def criar_conteudo(
     if topico_id and subtopico_id:
         raise HTTPException(status_code=400, detail="Informe apenas um: topico_id ou subtopico_id")
 
-    # Valida que pertence ao usuário
     if topico_id:
         pai = db.query(models.Topico).join(models.Materia).join(models.PlanoEstudo).filter(
             models.Topico.id == topico_id,
@@ -642,10 +865,7 @@ def criar_conteudo(
     if arquivo and arquivo.filename:
         ext = os.path.splitext(arquivo.filename)[1].lower()
         if ext not in EXTENSOES_PERMITIDAS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Extensão {ext} não permitida. Use: {', '.join(sorted(EXTENSOES_PERMITIDAS))}"
-            )
+            raise HTTPException(status_code=400, detail=f"Extensão {ext} não permitida.")
         nome_unico = f"{uuid.uuid4()}_{arquivo.filename}"
         caminho = os.path.join(UPLOAD_DIR, nome_unico)
         with open(caminho, "wb") as f:
@@ -667,6 +887,64 @@ def criar_conteudo(
     return conteudo
 
 
+@router.patch("/conteudos/{conteudo_id}")
+def editar_conteudo(
+    conteudo_id: int,
+    titulo: str = Form(None),
+    texto: str = Form(None),
+    url_link: str = Form(None),
+    arquivo: UploadFile = File(None),
+    remover_arquivo: str = Form(None),
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    conteudo = db.query(models.Conteudo).filter(models.Conteudo.id == conteudo_id).first()
+    if not conteudo:
+        raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
+
+    dono_id = None
+    if conteudo.topico_id:
+        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
+            models.Topico.id == conteudo.topico_id
+        ).scalar()
+    elif conteudo.subtopico_id:
+        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).join(models.Subtopico).filter(
+            models.Subtopico.id == conteudo.subtopico_id
+        ).scalar()
+
+    if dono_id != usuario.id:
+        raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
+
+    if titulo is not None: conteudo.titulo = titulo.strip() or None
+    if texto is not None: conteudo.texto = texto.strip() or None
+    if url_link is not None: conteudo.url_link = url_link.strip() or None
+
+    if remover_arquivo and remover_arquivo.lower() in ("true", "1", "sim"):
+        if conteudo.url_arquivo:
+            antigo = conteudo.url_arquivo.lstrip("/")
+            if os.path.exists(antigo):
+                os.remove(antigo)
+        conteudo.url_arquivo = None
+
+    if arquivo and arquivo.filename:
+        ext = os.path.splitext(arquivo.filename)[1].lower()
+        if ext not in EXTENSOES_PERMITIDAS:
+            raise HTTPException(status_code=400, detail=f"Extensão {ext} não permitida.")
+        if conteudo.url_arquivo:
+            antigo = conteudo.url_arquivo.lstrip("/")
+            if os.path.exists(antigo):
+                os.remove(antigo)
+        nome_unico = f"{uuid.uuid4()}_{arquivo.filename}"
+        caminho = os.path.join(UPLOAD_DIR, nome_unico)
+        with open(caminho, "wb") as f:
+            f.write(arquivo.file.read())
+        conteudo.url_arquivo = f"/uploads/{nome_unico}"
+
+    db.commit()
+    db.refresh(conteudo)
+    return conteudo
+
+
 @router.delete("/conteudos/{conteudo_id}")
 def deletar_conteudo(conteudo_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     conteudo = db.query(models.Conteudo).outerjoin(
@@ -678,7 +956,6 @@ def deletar_conteudo(conteudo_id: int, usuario=Depends(get_usuario_atual), db: S
     if not conteudo:
         raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
 
-    # Valida que o usuário é dono
     dono_id = None
     if conteudo.topico_id:
         dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
@@ -701,75 +978,9 @@ def deletar_conteudo(conteudo_id: int, usuario=Depends(get_usuario_atual), db: S
     db.commit()
     return {"mensagem": "Conteúdo deletado"}
 
-@router.patch("/conteudos/{conteudo_id}")
-def editar_conteudo(
-    conteudo_id: int,
-    titulo: str = Form(None),
-    texto: str = Form(None),
-    url_link: str = Form(None),
-    arquivo: UploadFile = File(None),
-    remover_arquivo: str = Form(None),
-    usuario=Depends(get_usuario_atual),
-    db: Session = Depends(get_db),
-):
-    conteudo = db.query(models.Conteudo).filter(models.Conteudo.id == conteudo_id).first()
-    if not conteudo:
-        raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
-
-    # Valida que é do usuário
-    dono_id = None
-    if conteudo.topico_id:
-        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
-            models.Topico.id == conteudo.topico_id
-        ).scalar()
-    elif conteudo.subtopico_id:
-        dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).join(models.Subtopico).filter(
-            models.Subtopico.id == conteudo.subtopico_id
-        ).scalar()
-
-    if dono_id != usuario.id:
-        raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
-
-    # Atualiza campos de texto (só se vieram)
-    if titulo is not None:
-        conteudo.titulo = titulo.strip() or None
-    if texto is not None:
-        conteudo.texto = texto.strip() or None
-    if url_link is not None:
-        conteudo.url_link = url_link.strip() or None
-
-    # Remoção de arquivo (flag booleana em string "true"/"1")
-    if remover_arquivo and remover_arquivo.lower() in ("true", "1", "sim"):
-        if conteudo.url_arquivo:
-            antigo = conteudo.url_arquivo.lstrip("/")
-            if os.path.exists(antigo):
-                os.remove(antigo)
-        conteudo.url_arquivo = None
-
-    # Novo arquivo substitui o antigo
-    if arquivo and arquivo.filename:
-        ext = os.path.splitext(arquivo.filename)[1].lower()
-        if ext not in EXTENSOES_PERMITIDAS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Extensão {ext} não permitida. Use: {', '.join(sorted(EXTENSOES_PERMITIDAS))}"
-            )
-        if conteudo.url_arquivo:
-            antigo = conteudo.url_arquivo.lstrip("/")
-            if os.path.exists(antigo):
-                os.remove(antigo)
-        nome_unico = f"{uuid.uuid4()}_{arquivo.filename}"
-        caminho = os.path.join(UPLOAD_DIR, nome_unico)
-        with open(caminho, "wb") as f:
-            f.write(arquivo.file.read())
-        conteudo.url_arquivo = f"/uploads/{nome_unico}"
-
-    db.commit()
-    db.refresh(conteudo)
-    return conteudo
 
 # ==========================================================
-# MATERIAIS (biblioteca pessoal)
+# MATERIAIS
 # ==========================================================
 
 @router.get("/materiais")
@@ -793,6 +1004,7 @@ def listar_materiais(usuario=Depends(get_usuario_atual), db: Session = Depends(g
         }
         for m in materiais
     ]
+
 
 @router.post("/materiais")
 def criar_material(
@@ -935,6 +1147,26 @@ def editar_material(
     }
 
 
+@router.patch("/materiais/{material_id}/ultima-pagina")
+def atualizar_ultima_pagina(
+    material_id: int,
+    dados: schemas.MaterialUltimaPaginaUpdate,
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    if dados.ultima_pagina < 1:
+        raise HTTPException(status_code=400, detail="Página deve ser >= 1")
+    material = db.query(models.Material).filter(
+        models.Material.id == material_id,
+        models.Material.usuario_id == usuario.id
+    ).first()
+    if not material:
+        raise HTTPException(status_code=404, detail="Material não encontrado")
+    material.ultima_pagina = dados.ultima_pagina
+    db.commit()
+    return {"id": material.id, "ultima_pagina": material.ultima_pagina}
+
+
 @router.delete("/materiais/{material_id}")
 def deletar_material(material_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     material = db.query(models.Material).filter(
@@ -956,103 +1188,12 @@ def deletar_material(material_id: int, usuario=Depends(get_usuario_atual), db: S
     db.commit()
     return {"mensagem": "Material deletado"}
 
-# ==========================================================
-# TIPOS DE ATIVIDADE
-# ==========================================================
-
-def serializar_tipo_atividade(t):
-    if t is None: return None
-    return {"id": t.id, "nome": t.nome}
-
-
-def verificar_tipo_atividade_do_usuario(tipo_id: int, usuario_id: int, db: Session):
-    if tipo_id is None:
-        return None
-    t = db.query(models.TipoAtividade).filter(
-        models.TipoAtividade.id == tipo_id,
-        models.TipoAtividade.usuario_id == usuario_id
-    ).first()
-    if not t:
-        raise HTTPException(status_code=404, detail="Tipo de atividade não encontrado")
-    return t
-
-
-@router.get("/tipos-atividade")
-def listar_tipos_atividade(usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
-    tipos = db.query(models.TipoAtividade).filter(
-        models.TipoAtividade.usuario_id == usuario.id
-    ).order_by(models.TipoAtividade.nome.asc()).all()
-
-    if not tipos:
-        padrao = ["Trabalho", "Prova", "Projeto", "Resumo", "Lista de Exercícios"]
-        for nome in padrao:
-            db.add(models.TipoAtividade(usuario_id=usuario.id, nome=nome))
-        db.commit()
-        tipos = db.query(models.TipoAtividade).filter(
-            models.TipoAtividade.usuario_id == usuario.id
-        ).order_by(models.TipoAtividade.nome.asc()).all()
-
-    return [serializar_tipo_atividade(t) for t in tipos]
-
-
-@router.post("/tipos-atividade")
-def criar_tipo_atividade(dados: schemas.TipoAtividadeCreate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
-    nome = dados.nome.strip()
-    if not nome:
-        raise HTTPException(status_code=400, detail="Nome não pode ser vazio")
-    existe = db.query(models.TipoAtividade).filter(
-        models.TipoAtividade.usuario_id == usuario.id,
-        models.TipoAtividade.nome == nome
-    ).first()
-    if existe:
-        raise HTTPException(status_code=400, detail="Já existe um tipo com esse nome")
-    t = models.TipoAtividade(usuario_id=usuario.id, nome=nome)
-    db.add(t)
-    db.commit()
-    db.refresh(t)
-    return serializar_tipo_atividade(t)
-
-
-@router.patch("/tipos-atividade/{tipo_id}")
-def editar_tipo_atividade(tipo_id: int, dados: schemas.TipoAtividadeUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
-    t = verificar_tipo_atividade_do_usuario(tipo_id, usuario.id, db)
-    nome = dados.nome.strip()
-    if not nome:
-        raise HTTPException(status_code=400, detail="Nome não pode ser vazio")
-    existe = db.query(models.TipoAtividade).filter(
-        models.TipoAtividade.usuario_id == usuario.id,
-        models.TipoAtividade.nome == nome,
-        models.TipoAtividade.id != tipo_id
-    ).first()
-    if existe:
-        raise HTTPException(status_code=400, detail="Já existe outro tipo com esse nome")
-    t.nome = nome
-    db.commit()
-    db.refresh(t)
-    return serializar_tipo_atividade(t)
-
-
-@router.delete("/tipos-atividade/{tipo_id}")
-def deletar_tipo_atividade(tipo_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
-    t = verificar_tipo_atividade_do_usuario(tipo_id, usuario.id, db)
-    db.delete(t)
-    db.commit()
-    return {"mensagem": "Tipo de atividade deletado"}
-
 
 # ==========================================================
 # ATIVIDADES
 # ==========================================================
 
-def _parse_data_entrega(s):
-    """Aceita ISO 8601, retorna datetime UTC aware ou None."""
-    if not s or not s.strip():
-        return None
-    return _parse_datetime(s)
-
-
 def serializar_atividade(a: models.Atividade, db: Session):
-    """Retorna atividade + info do nó vinculado (pra mostrar caminho)."""
     caminho = {}
     node_nome = None
     node_tipo = None
@@ -1126,7 +1267,6 @@ def serializar_atividade(a: models.Atividade, db: Session):
 
 
 def _verificar_vinculo_atividade(dados, usuario_id, db):
-    """Valida que um dos IDs veio E que pertence ao usuário. Retorna dict com os campos limpos."""
     ids = {
         "plano_id": getattr(dados, "plano_id", None),
         "materia_id": getattr(dados, "materia_id", None),
@@ -1135,7 +1275,7 @@ def _verificar_vinculo_atividade(dados, usuario_id, db):
     }
     preenchidos = {k: v for k, v in ids.items() if v is not None}
     if len(preenchidos) > 1:
-        raise HTTPException(status_code=400, detail="Só pode vincular a um nó: plano, matéria, tópico ou subtópico")
+        raise HTTPException(status_code=400, detail="Só pode vincular a um nó")
 
     if "plano_id" in preenchidos:
         p = db.query(models.PlanoEstudo).filter(
@@ -1184,7 +1324,6 @@ def criar_atividade(dados: schemas.AtividadeCreate, usuario=Depends(get_usuario_
         verificar_tipo_atividade_do_usuario(dados.tipo_id, usuario.id, db)
 
     ids = _verificar_vinculo_atividade(dados, usuario.id, db)
-
     data_entrega = _parse_data_entrega(dados.data_entrega)
 
     a = models.Atividade(
@@ -1233,10 +1372,8 @@ def editar_atividade(atividade_id: int, dados: schemas.AtividadeUpdate, usuario=
             verificar_tipo_atividade_do_usuario(dados.tipo_id, usuario.id, db)
             a.tipo_id = dados.tipo_id
 
-    # Vínculo: se algum ID foi passado, valida
     if any([dados.plano_id is not None, dados.materia_id is not None,
             dados.topico_id is not None, dados.subtopico_id is not None]):
-        # Zera todos e reaplica
         a.plano_id = None
         a.materia_id = None
         a.topico_id = None
@@ -1267,6 +1404,7 @@ def mudar_status_atividade(atividade_id: int, dados: schemas.AtividadeStatusUpda
     db.refresh(a)
     return serializar_atividade(a, db)
 
+
 @router.delete("/atividades/{atividade_id}")
 def deletar_atividade(atividade_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     a = db.query(models.Atividade).filter(
@@ -1276,7 +1414,6 @@ def deletar_atividade(atividade_id: int, usuario=Depends(get_usuario_atual), db:
     if not a:
         raise HTTPException(status_code=404, detail="Atividade não encontrada")
 
-    # Apaga todos os arquivos físicos dos anexos
     for an in a.anexos:
         caminho = an.url_arquivo.lstrip("/")
         if os.path.exists(caminho):
@@ -1289,38 +1426,78 @@ def deletar_atividade(atividade_id: int, usuario=Depends(get_usuario_atual), db:
     db.commit()
     return {"mensagem": "Atividade deletada"}
 
+
+# ==========================================================
+# ANEXOS DE ATIVIDADE
+# ==========================================================
+
+@router.post("/atividades/{atividade_id}/anexos")
+def upload_anexo_atividade(
+    atividade_id: int,
+    arquivo: UploadFile = File(...),
+    usuario=Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    a = db.query(models.Atividade).filter(
+        models.Atividade.id == atividade_id,
+        models.Atividade.usuario_id == usuario.id
+    ).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Atividade não encontrada")
+
+    if not arquivo or not arquivo.filename:
+        raise HTTPException(status_code=400, detail="Nenhum arquivo enviado")
+
+    ext = os.path.splitext(arquivo.filename)[1].lower()
+    if ext not in EXTENSOES_PERMITIDAS:
+        raise HTTPException(status_code=400, detail=f"Extensão {ext} não permitida.")
+
+    nome_unico = f"{uuid.uuid4()}_{arquivo.filename}"
+    caminho = os.path.join(UPLOAD_DIR, nome_unico)
+    with open(caminho, "wb") as f:
+        f.write(arquivo.file.read())
+
+    anexo = models.AtividadeAnexo(
+        atividade_id=atividade_id,
+        nome_original=arquivo.filename,
+        url_arquivo=f"/uploads/{nome_unico}",
+    )
+    db.add(anexo)
+    db.commit()
+    db.refresh(anexo)
+    return {
+        "id": anexo.id,
+        "nome_original": anexo.nome_original,
+        "url_arquivo": anexo.url_arquivo,
+    }
+
+
+@router.delete("/anexos/{anexo_id}")
+def deletar_anexo(anexo_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
+    anexo = db.query(models.AtividadeAnexo).join(models.Atividade).filter(
+        models.AtividadeAnexo.id == anexo_id,
+        models.Atividade.usuario_id == usuario.id
+    ).first()
+    if not anexo:
+        raise HTTPException(status_code=404, detail="Anexo não encontrado")
+
+    caminho = anexo.url_arquivo.lstrip("/")
+    if os.path.exists(caminho):
+        try:
+            os.remove(caminho)
+        except OSError:
+            pass
+
+    db.delete(anexo)
+    db.commit()
+    return {"mensagem": "Anexo deletado"}
+
+
 # ==========================================================
 # AGENDA
 # ==========================================================
 
-from datetime import datetime
-
-
-def _parse_datetime(s: str) -> datetime:
-    """Aceita ISO 8601 com ou sem timezone. Sempre retorna aware em UTC."""
-    from datetime import timezone
-    s = s.strip().replace('Z', '+00:00')
-    try:
-        dt = datetime.fromisoformat(s)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Data inválida: {s}")
-    # Se veio naive, assume UTC
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt
-
-def _aware(dt: datetime) -> datetime:
-    """Garante que o datetime seja aware em UTC."""
-    from datetime import timezone
-    if dt is None:
-        return None
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt
-
 def _serializar_horario(h: models.HorarioEstudo, db: Session) -> dict:
-    """Retorna dados do horário + info do nó pai pra exibir na agenda."""
-    # Descobre o nó pai e o caminho (plano > matéria > [tópico] > [subtópico])
     node_nome = ""
     node_tipo = ""
     caminho = {}
@@ -1375,19 +1552,11 @@ def _validar_horario(data_inicio: datetime, data_fim: datetime):
         raise HTTPException(status_code=400, detail="Hora de fim deve ser depois da hora de início")
 
 
-def _verificar_sobreposicao(
-    db: Session, usuario_id: int, data_inicio: datetime, data_fim: datetime,
-    ignorar_id: int = None
-):
-    """Verifica se já existe agendamento conflitante do mesmo usuário."""
-    # Busca TODOS os horários
+def _verificar_sobreposicao(db, usuario_id, data_inicio, data_fim, ignorar_id=None):
     todos = db.query(models.HorarioEstudo).all()
-
     for h in todos:
         if ignorar_id and h.id == ignorar_id:
             continue
-
-        # Descobre o dono
         dono_id = None
         if h.topico_id:
             dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
@@ -1397,30 +1566,18 @@ def _verificar_sobreposicao(
             dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).join(models.Subtopico).filter(
                 models.Subtopico.id == h.subtopico_id
             ).scalar()
-
         if dono_id != usuario_id:
             continue
-
-        # Conflito se [inicio_novo, fim_novo) intersecta [inicio_existente, fim_existente)
         if data_inicio < _aware(h.data_fim) and data_fim > _aware(h.data_inicio):
             return h
-
     return None
 
 
 @router.get("/agenda")
-def listar_agenda(
-    inicio: str = None,
-    fim: str = None,
-    usuario=Depends(get_usuario_atual),
-    db: Session = Depends(get_db),
-):
-    """Retorna todos os agendamentos do usuário. Filtro opcional por range."""
-    # Busca todos os horários que pertencem a nós do usuário
+def listar_agenda(inicio: str = None, fim: str = None, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     todos = db.query(models.HorarioEstudo).all()
     resultado = []
     for h in todos:
-        # Confere se é do usuário
         dono_id = None
         if h.topico_id:
             dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
@@ -1434,7 +1591,6 @@ def listar_agenda(
         if dono_id != usuario.id:
             continue
 
-        # Filtro por range (se passado)
         if inicio:
             dt_ini = _parse_datetime(inicio)
             if _aware(h.data_fim) < dt_ini:
@@ -1446,23 +1602,17 @@ def listar_agenda(
 
         resultado.append(_serializar_horario(h, db))
 
-    # Ordena por data_inicio
     resultado.sort(key=lambda x: x["data_inicio"])
     return resultado
 
 
 @router.post("/agendamentos")
-def criar_agendamento(
-    dados: schemas.AgendamentoCreate,
-    usuario=Depends(get_usuario_atual),
-    db: Session = Depends(get_db),
-):
+def criar_agendamento(dados: schemas.AgendamentoCreate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     if not dados.topico_id and not dados.subtopico_id:
         raise HTTPException(status_code=400, detail="Informe topico_id ou subtopico_id")
     if dados.topico_id and dados.subtopico_id:
-        raise HTTPException(status_code=400, detail="Informe apenas um: topico_id ou subtopico_id")
+        raise HTTPException(status_code=400, detail="Informe apenas um")
 
-    # Valida dono
     if dados.topico_id:
         pai = db.query(models.Topico).join(models.Materia).join(models.PlanoEstudo).filter(
             models.Topico.id == dados.topico_id,
@@ -1483,10 +1633,7 @@ def criar_agendamento(
 
     conflito = _verificar_sobreposicao(db, usuario.id, dt_inicio, dt_fim)
     if conflito:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Já existe um estudo agendado nesse horário."
-        )
+        raise HTTPException(status_code=409, detail="Já existe um estudo agendado nesse horário.")
 
     h = models.HorarioEstudo(
         topico_id=dados.topico_id,
@@ -1501,17 +1648,11 @@ def criar_agendamento(
 
 
 @router.patch("/agendamentos/{agendamento_id}")
-def editar_agendamento(
-    agendamento_id: int,
-    dados: schemas.AgendamentoUpdate,
-    usuario=Depends(get_usuario_atual),
-    db: Session = Depends(get_db),
-):
+def editar_agendamento(agendamento_id: int, dados: schemas.AgendamentoUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     h = db.query(models.HorarioEstudo).filter(models.HorarioEstudo.id == agendamento_id).first()
     if not h:
         raise HTTPException(status_code=404, detail="Agendamento não encontrado")
 
-    # Valida dono
     dono_id = None
     if h.topico_id:
         dono_id = db.query(models.PlanoEstudo.usuario_id).join(models.Materia).join(models.Topico).filter(
@@ -1540,11 +1681,7 @@ def editar_agendamento(
 
 
 @router.delete("/agendamentos/{agendamento_id}")
-def deletar_agendamento(
-    agendamento_id: int,
-    usuario=Depends(get_usuario_atual),
-    db: Session = Depends(get_db),
-):
+def deletar_agendamento(agendamento_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     h = db.query(models.HorarioEstudo).filter(models.HorarioEstudo.id == agendamento_id).first()
     if not h:
         raise HTTPException(status_code=404, detail="Agendamento não encontrado")
@@ -1566,84 +1703,10 @@ def deletar_agendamento(
     db.commit()
     return {"mensagem": "Agendamento deletado"}
 
-# ==========================================================
-# ANEXOS DE ATIVIDADE
-# ==========================================================
-
-@router.post("/atividades/{atividade_id}/anexos")
-def upload_anexo_atividade(
-    atividade_id: int,
-    arquivo: UploadFile = File(...),
-    usuario=Depends(get_usuario_atual),
-    db: Session = Depends(get_db),
-):
-    a = db.query(models.Atividade).filter(
-        models.Atividade.id == atividade_id,
-        models.Atividade.usuario_id == usuario.id
-    ).first()
-    if not a:
-        raise HTTPException(status_code=404, detail="Atividade não encontrada")
-
-    if not arquivo or not arquivo.filename:
-        raise HTTPException(status_code=400, detail="Nenhum arquivo enviado")
-
-    ext = os.path.splitext(arquivo.filename)[1].lower()
-    if ext not in EXTENSOES_PERMITIDAS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Extensão {ext} não permitida. Use: {', '.join(sorted(EXTENSOES_PERMITIDAS))}"
-        )
-
-    nome_unico = f"{uuid.uuid4()}_{arquivo.filename}"
-    caminho = os.path.join(UPLOAD_DIR, nome_unico)
-    with open(caminho, "wb") as f:
-        f.write(arquivo.file.read())
-
-    anexo = models.AtividadeAnexo(
-        atividade_id=atividade_id,
-        nome_original=arquivo.filename,
-        url_arquivo=f"/uploads/{nome_unico}",
-    )
-    db.add(anexo)
-    db.commit()
-    db.refresh(anexo)
-    return {
-        "id": anexo.id,
-        "nome_original": anexo.nome_original,
-        "url_arquivo": anexo.url_arquivo,
-    }
-
-
-@router.delete("/anexos/{anexo_id}")
-def deletar_anexo(anexo_id: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
-    anexo = db.query(models.AtividadeAnexo).join(models.Atividade).filter(
-        models.AtividadeAnexo.id == anexo_id,
-        models.Atividade.usuario_id == usuario.id
-    ).first()
-    if not anexo:
-        raise HTTPException(status_code=404, detail="Anexo não encontrado")
-
-    # Apaga o arquivo físico
-    caminho = anexo.url_arquivo.lstrip("/")
-    if os.path.exists(caminho):
-        try:
-            os.remove(caminho)
-        except OSError:
-            pass
-
-    db.delete(anexo)
-    db.commit()
-    return {"mensagem": "Anexo deletado"}
-
 
 # ==========================================================
 # MARCAÇÕES (anotações em PDFs)
 # ==========================================================
-
-import json as _json
-
-TIPOS_MARCACAO_VALIDOS = {"grifo", "retangulo", "seta", "bookmark", "nota"}
-
 
 def _serializar_marcacao(m: models.Marcacao) -> dict:
     return {
@@ -1657,18 +1720,7 @@ def _serializar_marcacao(m: models.Marcacao) -> dict:
     }
 
 
-def _validar_material_do_usuario(material_id: int, usuario_id: int, db: Session):
-    material = db.query(models.Material).filter(
-        models.Material.id == material_id,
-        models.Material.usuario_id == usuario_id
-    ).first()
-    if not material:
-        raise HTTPException(status_code=404, detail="Material não encontrado")
-    return material
-
-
 def _validar_json(dados_str: str):
-    """Confere se 'dados' é um JSON válido. Salva como string."""
     try:
         _json.loads(dados_str)
     except (ValueError, TypeError):
@@ -1740,41 +1792,16 @@ def deletar_marcacao(marcacao_id: int, usuario=Depends(get_usuario_atual), db: S
     db.commit()
     return {"mensagem": "Marcação deletada"}
 
-@router.patch("/materiais/{material_id}/ultima-pagina")
-def atualizar_ultima_pagina(
-    material_id: int,
-    dados: schemas.MaterialUltimaPaginaUpdate,
-    usuario=Depends(get_usuario_atual),
-    db: Session = Depends(get_db),
-):
-    if dados.ultima_pagina < 1:
-        raise HTTPException(status_code=400, detail="Página deve ser >= 1")
-    material = db.query(models.Material).filter(
-        models.Material.id == material_id,
-        models.Material.usuario_id == usuario.id
-    ).first()
-    if not material:
-        raise HTTPException(status_code=404, detail="Material não encontrado")
-    material.ultima_pagina = dados.ultima_pagina
-    db.commit()
-    return {"id": material.id, "ultima_pagina": material.ultima_pagina}
-
 
 # ==========================================================
-# NOTAS POR PÁGINA (materiais)
+# NOTAS POR PÁGINA
 # ==========================================================
 
 @router.get("/materiais/{material_id}/notas/{pagina}")
 def obter_nota_pagina(material_id: int, pagina: int, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     if pagina < 1:
         raise HTTPException(status_code=400, detail="Página deve ser >= 1")
-    # Valida dono do material
-    material = db.query(models.Material).filter(
-        models.Material.id == material_id,
-        models.Material.usuario_id == usuario.id
-    ).first()
-    if not material:
-        raise HTTPException(status_code=404, detail="Material não encontrado")
+    _validar_material_do_usuario(material_id, usuario.id, db)
 
     nota = db.query(models.MaterialNota).filter(
         models.MaterialNota.usuario_id == usuario.id,
@@ -1794,21 +1821,10 @@ def obter_nota_pagina(material_id: int, pagina: int, usuario=Depends(get_usuario
 
 
 @router.put("/materiais/{material_id}/notas/{pagina}")
-def salvar_nota_pagina(
-    material_id: int,
-    pagina: int,
-    dados: schemas.MaterialNotaUpdate,
-    usuario=Depends(get_usuario_atual),
-    db: Session = Depends(get_db),
-):
+def salvar_nota_pagina(material_id: int, pagina: int, dados: schemas.MaterialNotaUpdate, usuario=Depends(get_usuario_atual), db: Session = Depends(get_db)):
     if pagina < 1:
         raise HTTPException(status_code=400, detail="Página deve ser >= 1")
-    material = db.query(models.Material).filter(
-        models.Material.id == material_id,
-        models.Material.usuario_id == usuario.id
-    ).first()
-    if not material:
-        raise HTTPException(status_code=404, detail="Material não encontrado")
+    _validar_material_do_usuario(material_id, usuario.id, db)
 
     nota = db.query(models.MaterialNota).filter(
         models.MaterialNota.usuario_id == usuario.id,

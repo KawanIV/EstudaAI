@@ -103,6 +103,7 @@ function abrirDropdown(event, tipo, id, statusAtual) {
     fecharDropdown();
     const dropdown = document.createElement('div');
     dropdown.className = 'dropdown-status';
+
     const filhos = {
         plano: { label: '➕ Nova matéria', acao: () => abrirCriacao('materia', id) },
         materia: { label: '➕ Novo tópico', acao: () => abrirCriacao('topico', id) },
@@ -116,33 +117,77 @@ function abrirDropdown(event, tipo, id, statusAtual) {
         dropdown.appendChild(add);
         dropdown.appendChild(sep());
     }
-    if (tipo === 'topico' || tipo === 'subtopico') {
-        const opcoes = [
-            { valor: 'adicionado', label: 'Adicionado', cor: '⚪' },
-            { valor: 'em_estudo',  label: 'Em estudo',  cor: '🟡' },
-            { valor: 'concluido',  label: 'Concluído',  cor: '🟢' },
-        ];
+
+    // Status: só pra tópico, subtópico, matéria e plano
+    if (['plano', 'materia', 'topico', 'subtopico'].includes(tipo)) {
+        const recurso = tipo === 'plano' ? 'planos'
+                      : tipo === 'materia' ? 'materias'
+                      : tipo === 'topico' ? 'topicos'
+                      : 'subtopicos';
+
+        // Procura o status_manual atual na árvore
+        let statusManualAtual = 'auto';
+        if (tipo === 'plano') {
+            const p = ARVORE.find(x => x.id === id);
+            if (p) statusManualAtual = p.status_manual || 'auto';
+        } else if (tipo === 'materia') {
+            for (const p of ARVORE) {
+                const m = p.materias.find(x => x.id === id);
+                if (m) { statusManualAtual = m.status_manual || 'auto'; break; }
+            }
+        } else if (tipo === 'topico') {
+            for (const p of ARVORE) for (const m of p.materias) {
+                const t = m.topicos.find(x => x.id === id);
+                if (t) { statusManualAtual = t.status_manual || 'auto'; break; }
+            }
+        } else {
+            for (const p of ARVORE) for (const m of p.materias) for (const t of m.topicos) {
+                const s = t.subtopicos.find(x => x.id === id);
+                if (s) { statusManualAtual = s.status_manual || 'adicionado'; break; }
+            }
+        }
+
+        const opcoes = tipo === 'subtopico'
+            ? [
+                { valor: 'adicionado', label: 'Adicionado', icone: '⚪' },
+                { valor: 'em_estudo',  label: 'Em estudo',  icone: '🟡' },
+                { valor: 'concluido',  label: 'Concluído',  icone: '🟢' },
+              ]
+            : [
+                { valor: 'auto',       label: 'Automático', icone: '🔄' },
+                { valor: 'adicionado', label: 'Adicionado', icone: '⚪' },
+                { valor: 'em_estudo',  label: 'Em estudo',  icone: '🟡' },
+                { valor: 'concluido',  label: 'Concluído',  icone: '🟢' },
+              ];
+
         opcoes.forEach(op => {
             const item = document.createElement('div');
             item.className = 'item';
-            const check = op.valor === statusAtual ? '<span class="check">✓</span>' : '';
-            item.innerHTML = `${op.cor} ${op.label} ${check}`;
-            item.onclick = (e) => { e.stopPropagation(); mudarStatus(tipo, id, op.valor); };
+            const check = op.valor === statusManualAtual ? '<span class="check">✓</span>' : '';
+            item.innerHTML = `${op.icone} ${op.label} ${check}`;
+            item.onclick = (e) => {
+                e.stopPropagation();
+                mudarStatusManual(recurso, id, op.valor);
+            };
             dropdown.appendChild(item);
         });
         dropdown.appendChild(sep());
     }
+
     const recurso = tipo === 'plano' ? 'planos' : (tipo === 'materia' ? 'materias' : (tipo === 'topico' ? 'topicos' : 'subtopicos'));
+
     const itemEditar = document.createElement('div');
     itemEditar.className = 'item';
     itemEditar.innerHTML = '✏️ Editar';
     itemEditar.onclick = (e) => { e.stopPropagation(); fecharDropdown(); editarItem(recurso, id); };
     dropdown.appendChild(itemEditar);
+
     const itemExcluir = document.createElement('div');
     itemExcluir.className = 'item perigo';
     itemExcluir.innerHTML = '✕ Excluir';
     itemExcluir.onclick = (e) => { e.stopPropagation(); fecharDropdown(); excluirItem(recurso, id); };
     dropdown.appendChild(itemExcluir);
+
     document.body.appendChild(dropdown);
     posicionarDropdown(dropdown, event.target);
     dropdownAberto = dropdown;
@@ -217,14 +262,19 @@ async function trocarCorRaiz(novaCor) {
 // ==========================================
 // MUDAR STATUS (tópico/subtópico)
 // ==========================================
-async function mudarStatus(tipo, id, novoStatus) {
+async function mudarStatusManual(recurso, id, novoStatus) {
     fecharDropdown();
-    const recurso = tipo === 'topico' ? 'topicos' : 'subtopicos';
     const resp = await apiFetch(`/api/estudos/${recurso}/${id}/status`, {
-        method: 'PATCH', body: JSON.stringify({ status: novoStatus })
+        method: 'PATCH',
+        body: JSON.stringify({ status: novoStatus })
     });
-    if (resp && resp.ok) { mostrarToast('Status atualizado', 'success'); await carregarArvore(); }
-    else if (resp) { const err = await resp.json(); mostrarToast(err.detail || 'Erro', 'error'); }
+    if (resp && resp.ok) {
+        mostrarToast('Status atualizado', 'success');
+        await carregarArvore();
+    } else if (resp) {
+        const err = await resp.json();
+        mostrarToast(err.detail || 'Erro', 'error');
+    }
 }
 
 // ==========================================

@@ -1,3 +1,78 @@
+function renderizarFaixaStatus(no) {
+    const container = document.getElementById('faixa-status');
+    if (!container) return;
+
+    const tipo = NO_ATUAL.tipo;
+    if (!['plano', 'materia', 'topico', 'subtopico'].includes(tipo)) {
+        container.style.display = 'none';
+        return;
+    }
+
+    const st = no.status_manual || 'auto';
+    const pct = no.porcentagem != null ? no.porcentagem : 0;
+    const stEfetivo = no.status || 'adicionado';
+
+    const icones = { auto: '🔄', adicionado: '⚪', em_estudo: '🟡', concluido: '🟢' };
+    const labels = { auto: 'Automático', adicionado: 'Adicionado', em_estudo: 'Em estudo', concluido: 'Concluído' };
+
+    const icone = icones[st] || '⚪';
+    const label = labels[st] || st;
+
+    const recurso = tipo === 'plano' ? 'planos'
+                  : tipo === 'materia' ? 'materias'
+                  : tipo === 'topico' ? 'topicos'
+                  : 'subtopicos';
+
+    container.innerHTML = `
+        <span>Status: <strong>${icone} ${label}</strong> (${pct}%)</span>
+        <button class="btn-mudar-status" onclick="abrirDropdownStatusFaixa('${recurso}', ${no.id}, '${st}', event)">Mudar</button>
+    `;
+    container.style.display = 'flex';
+}
+
+function abrirDropdownStatusFaixa(recurso, id, statusManualAtual, event) {
+    event.stopPropagation();
+    fecharDropdown();
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'dropdown-status';
+
+    const tipo = recurso === 'planos' ? 'plano'
+               : recurso === 'materias' ? 'materia'
+               : recurso === 'topicos' ? 'topico'
+               : 'subtopico';
+
+    const opcoes = tipo === 'subtopico'
+        ? [
+            { valor: 'adicionado', label: 'Adicionado', icone: '⚪' },
+            { valor: 'em_estudo',  label: 'Em estudo',  icone: '🟡' },
+            { valor: 'concluido',  label: 'Concluído',  icone: '🟢' },
+          ]
+        : [
+            { valor: 'auto',       label: 'Automático', icone: '🔄' },
+            { valor: 'adicionado', label: 'Adicionado', icone: '⚪' },
+            { valor: 'em_estudo',  label: 'Em estudo',  icone: '🟡' },
+            { valor: 'concluido',  label: 'Concluído',  icone: '🟢' },
+          ];
+
+    opcoes.forEach(op => {
+        const item = document.createElement('div');
+        item.className = 'item';
+        const check = op.valor === statusManualAtual ? '<span class="check">✓</span>' : '';
+        item.innerHTML = `${op.icone} ${op.label} ${check}`;
+        item.onclick = (e) => {
+            e.stopPropagation();
+            mudarStatusManual(recurso, id, op.valor);
+        };
+        dropdown.appendChild(item);
+    });
+
+    document.body.appendChild(dropdown);
+    posicionarDropdown(dropdown, event.target);
+    dropdownAberto = dropdown;
+}
+
+
 // ==========================================
 // CONTEÚDO DO NÓ (tópico/matéria/subtópico)
 // ==========================================
@@ -14,6 +89,8 @@ function renderizarConteudoDoNo() {
     document.getElementById('bem-vindo-conteudo').style.display = 'none';
     document.getElementById('conteudo-area').style.display = 'block';
     document.getElementById('titulo-subtopico').innerText = `📄 ${no.numero ? no.numero + ' ' : ''}${no.nome}`.trim();
+    // Faixa de status
+    renderizarFaixaStatus(no);
 
     const tabs = [];
     if (NO_ATUAL.tipo === 'topico' || NO_ATUAL.tipo === 'subtopico') {

@@ -280,3 +280,33 @@ body.conteudo-maximizado .parte-inferior { flex: 1; border-top: none; }
 .toast-success { background: #27ae60; }
 .toast-error { background: #e74c3c; }
 .toast-info { background: #2980b9; }
+
+/* Faixa de status do nó */
+#faixa-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: #ecf0f1;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    color: #2c3e50;
+}
+#faixa-status strong { font-weight: 600; }
+.btn-mudar-status {
+    background: white;
+    border: 1px solid #bdc3c7;
+    color: #7f8c8d;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: 0.15s;
+}
+.btn-mudar-status:hover {
+    background: #1abc9c;
+    border-color: #1abc9c;
+    color: white;
+}
