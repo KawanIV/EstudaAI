@@ -1,2 +1,5 @@
 .env
 .venv
+uploads
+docker-compose.yml
+Dockerfile
